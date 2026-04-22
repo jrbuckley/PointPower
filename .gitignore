@@ -1,0 +1,10 @@
+node_modules
+dist
+packages/shared/dist
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.expo
+web-build
