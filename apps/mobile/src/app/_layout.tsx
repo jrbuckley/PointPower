@@ -57,6 +57,14 @@ export default function RootLayout() {
               headerLeft: () => <DashboardBackButton />,
             }}
           />
+          <Stack.Screen
+            name="delete-account"
+            options={{
+              title: "Delete account",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
+          />
         </Stack>
       </QueryClientProvider>
     </SafeAreaProvider>

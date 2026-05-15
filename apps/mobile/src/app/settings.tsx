@@ -87,6 +87,16 @@ export default function SettingsScreen() {
           <Text style={styles.rowTitle}>Sign out</Text>
           <Text style={styles.rowSub}>End this session</Text>
         </Pressable>
+        <Pressable
+          onPress={() => router.push("/delete-account")}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.rowTitle, styles.danger]}>Delete account</Text>
+          <Text style={styles.rowSub}>
+            Permanently remove your account and data
+          </Text>
+        </Pressable>
       </View>
 
       <View style={styles.section}>

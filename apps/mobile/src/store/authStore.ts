@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session } from "@supabase/supabase-js";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { DeleteAccountReasonCode } from "../constants/deleteAccountReasons";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export type MockUser = {
@@ -33,6 +34,10 @@ type AuthState = {
   }) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   clearMockRegistration: () => Promise<void>;
+  deleteAccount: (input: {
+    reasonCode: DeleteAccountReasonCode;
+    reasonDetail?: string;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 function delay(ms: number) {
@@ -175,6 +180,46 @@ export const useAuthStore = create<AuthState>()(
           await supabase.auth.signOut();
         }
         set({ user: null, registeredAccount: null });
+      },
+
+      async deleteAccount({ reasonCode, reasonDetail }) {
+        const detail = reasonDetail?.trim() || null;
+
+        if (isSupabaseConfigured() && supabase) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const uid = session?.user?.id;
+          const email = session?.user?.email ?? null;
+          if (!uid) {
+            return { ok: false, error: "You must be signed in to delete your account." };
+          }
+
+          const { error: feedbackError } = await supabase
+            .from("account_deletion_feedback")
+            .insert({
+              user_id: uid,
+              user_email: email,
+              reason_code: reasonCode,
+              reason_detail: detail,
+            });
+          if (feedbackError) {
+            return { ok: false, error: feedbackError.message };
+          }
+
+          const { error: deleteError } = await supabase.rpc("delete_own_account");
+          if (deleteError) {
+            return { ok: false, error: deleteError.message };
+          }
+
+          await supabase.auth.signOut();
+          set({ user: null, registeredAccount: null });
+          return { ok: true };
+        }
+
+        await delay(400);
+        set({ user: null, registeredAccount: null });
+        return { ok: true };
       },
     }),
     {
