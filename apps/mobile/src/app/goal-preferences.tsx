@@ -1,7 +1,17 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
+import { persistGoalPreference } from "../lib/persistGoalPreference";
 import type { GoalPreference } from "../types/models";
 import { useAppStore } from "../store/appStore";
 
@@ -34,59 +44,100 @@ export default function GoalPreferencesScreen() {
   const params = useLocalSearchParams<{ from?: string }>();
   const goalPreference = useAppStore((s) => s.goalPreference);
   const setGoalPreference = useAppStore((s) => s.setGoalPreference);
+  const fromOnboarding = params.from === "onboarding";
 
-  function select(v: GoalPreference) {
-    setGoalPreference(v);
-    refreshDashboardData();
-  }
+  useProfileFromApi(true);
 
-  function onSeeValue() {
-    router.replace("/dashboard");
+  const [draft, setDraft] = useState<GoalPreference>(goalPreference);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(goalPreference);
+  }, [goalPreference]);
+
+  const hasChanges = draft !== goalPreference;
+
+  async function onSave(navigateAfter = false) {
+    setSaving(true);
+    try {
+      const saved = await persistGoalPreference(draft);
+      setGoalPreference(saved);
+      refreshDashboardData();
+      if (navigateAfter) {
+        router.replace("/dashboard");
+      } else if (router.canGoBack()) {
+        router.back();
+      }
+    } catch {
+      Alert.alert(
+        "Could not save",
+        "Your goal preference could not be saved. Check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.lead}>
-        Choose what “good” means for you. Your dashboard reorders suggestions
-        automatically.
-      </Text>
-      {OPTIONS.map((opt) => {
-        const selected = goalPreference === opt.value;
-        return (
-          <Pressable
-            key={opt.value}
-            onPress={() => select(opt.value)}
-            style={({ pressed }) => [
-              styles.option,
-              selected && styles.optionSelected,
-              pressed && styles.optionPressed,
-            ]}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-          >
-            <View style={styles.radioOuter}>
-              {selected ? <View style={styles.radioInner} /> : null}
-            </View>
-            <View style={styles.optionText}>
-              <Text style={styles.optionTitle}>{opt.title}</Text>
-              <Text style={styles.optionSub}>{opt.subtitle}</Text>
-            </View>
-          </Pressable>
-        );
-      })}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.lead}>
+          Choose what “good” means for you. Your dashboard reorders suggestions
+          after you save.
+        </Text>
+        {OPTIONS.map((opt) => {
+          const selected = draft === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => setDraft(opt.value)}
+              style={({ pressed }) => [
+                styles.option,
+                selected && styles.optionSelected,
+                pressed && styles.optionPressed,
+              ]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+            >
+              <View style={styles.radioOuter}>
+                {selected ? <View style={styles.radioInner} /> : null}
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>{opt.title}</Text>
+                <Text style={styles.optionSub}>{opt.subtitle}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
-      {params.from === "onboarding" ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <Pressable
-            onPress={onSeeValue}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="See my value"
-          >
-            <Text style={styles.ctaText}>See my value</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <Pressable
+          onPress={() => void onSave(fromOnboarding)}
+          disabled={saving || (!fromOnboarding && !hasChanges)}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed && styles.ctaPressed,
+            (saving || (!fromOnboarding && !hasChanges)) && styles.ctaDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            fromOnboarding ? "See my value" : "Save changes"
+          }
+        >
+          <Text style={styles.ctaText}>
+            {saving
+              ? "Saving…"
+              : fromOnboarding
+                ? "See my value"
+                : "Save changes"}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -95,7 +146,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#f6f7fb",
+  },
+  scroll: { flex: 1 },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 12,
   },
   lead: {
     fontSize: 15,
@@ -148,7 +203,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footer: {
-    marginTop: "auto",
+    paddingHorizontal: 20,
     paddingTop: 12,
     backgroundColor: "#f6f7fb",
   },
@@ -159,6 +214,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.9 },
+  ctaDisabled: { opacity: 0.55 },
   ctaText: {
     color: "#fff",
     fontSize: 17,

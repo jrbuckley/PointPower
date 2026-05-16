@@ -1,7 +1,0 @@
-# Copy to .env and fill in from Supabase: Project Settings → API (or Connect dialog)
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-# Optional legacy fallback (JWT anon) if you have not migrated to publishable keys yet:
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=
-
-EXPO_PUBLIC_API_URL=http://localhost:3000

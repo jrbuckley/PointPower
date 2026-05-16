@@ -9,8 +9,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "@fastify/cors": "^10.0.2",
     "@points-exchange/shared": "*",
+    "@supabase/supabase-js": "^2.105.4",
     "fastify": "^5.8.5"
   },
   "devDependencies": {

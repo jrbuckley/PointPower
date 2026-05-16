@@ -12,11 +12,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ValueRangeSummaryCard } from "../components/ValueRangeSummaryCard";
 import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
+import { useProfileFromApi } from "../hooks/useProfileFromApi";
+import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
 import { formatDollars } from "../utils/format";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  useRewardAccountsFromApi(true);
+  useProfileFromApi(true);
   const { data, isPending, isRefetching, refetch } = useDashboardSummaryQuery();
 
   return (

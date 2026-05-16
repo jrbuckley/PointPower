@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,7 +15,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RewardBalanceInputRow } from "../components/RewardBalanceInputRow";
 import { PROGRAM_CATALOG, PROGRAM_IDS, PROGRAM_LABELS } from "../constants/programs";
+import { isApiConfigured } from "../lib/apiClient";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
+import { persistRewardBalances } from "../lib/persistRewardBalances";
+import {
+  applyMockLinkedAccounts,
+  mockLinkConnect,
+} from "../lib/rewardAccountsApi";
 import type { RewardBalance, RewardProgramId } from "../types/models";
 import {
   formatAmountInputDisplay,
@@ -56,6 +63,9 @@ export default function AddRewardsScreen() {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const apiEnabled = isApiConfigured();
 
   const rows = useMemo(() => {
     return selectedPrograms.map((programId) => ({
@@ -95,14 +105,77 @@ export default function AddRewardsScreen() {
     });
   }
 
-  function onSubmit() {
+  async function onSubmit() {
     const next: RewardBalance[] = selectedPrograms.map((programId) => ({
       programId,
       amount: parseAmountInput(inputs[programId] ?? ""),
     }));
-    setRewardBalances(next);
-    refreshDashboardData();
-    router.replace("/goal-preferences?from=onboarding");
+    setSubmitting(true);
+    try {
+      const saved = await persistRewardBalances(next);
+      setRewardBalances(saved);
+      refreshDashboardData();
+      router.replace(
+        params.from === "onboarding"
+          ? "/goal-preferences?from=onboarding"
+          : "/dashboard",
+      );
+    } catch {
+      Alert.alert(
+        "Could not save",
+        "Your balances could not be saved. Check your connection and try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onMockLinkAccounts() {
+    setLinking(true);
+    try {
+      const preview = await mockLinkConnect({ provider: "aggregator" });
+      const summary = preview.previewAccounts
+        .map(
+          (a: { programName: string; balance: number }) =>
+            `${a.programName}: ${a.balance.toLocaleString()} pts`,
+        )
+        .join("\n");
+
+      Alert.alert(
+        "Preview linked accounts",
+        `${preview.message}\n\n${summary}`,
+        [
+          { text: "Not now", style: "cancel" },
+          {
+            text: "Import balances",
+            onPress: () => {
+              void (async () => {
+                try {
+                  const imported = await applyMockLinkedAccounts();
+                  const saved = await persistRewardBalances(imported);
+                  setRewardBalances(saved);
+                  setSelectedPrograms(saved.map((b) => b.programId));
+                  setInputs(buildInitialStrings(saved));
+                  refreshDashboardData();
+                } catch {
+                  Alert.alert(
+                    "Import failed",
+                    "Could not import preview balances. Try again later.",
+                  );
+                }
+              })();
+            },
+          },
+        ],
+      );
+    } catch {
+      Alert.alert(
+        "Connection preview unavailable",
+        "Make sure the API server is running and you are signed in.",
+      );
+    } finally {
+      setLinking(false);
+    }
   }
 
   return (
@@ -119,18 +192,30 @@ export default function AddRewardsScreen() {
         </Text>
 
         <View style={styles.linkCard}>
-          <Text style={styles.linkTitle}>Link accounts (coming soon)</Text>
+          <Text style={styles.linkTitle}>
+            {apiEnabled ? "Link accounts (preview)" : "Link accounts (coming soon)"}
+          </Text>
           <Text style={styles.linkBody}>
-            Soon you’ll be able to connect accounts so balances and program types fill
-            automatically.
+            {apiEnabled
+              ? "Try a mock connection to see how automatic balance import would work."
+              : "Soon you’ll be able to connect accounts so balances and program types fill automatically."}
           </Text>
           <Pressable
-            disabled
-            style={styles.linkDisabled}
+            onPress={apiEnabled ? onMockLinkAccounts : undefined}
+            disabled={!apiEnabled || linking}
+            style={({ pressed }) => [
+              apiEnabled ? styles.linkCta : styles.linkDisabled,
+              pressed && apiEnabled && styles.linkCtaPressed,
+              linking && styles.linkDisabled,
+            ]}
             accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
+            accessibilityState={{ disabled: !apiEnabled || linking }}
           >
-            <Text style={styles.linkDisabledText}>Link my accounts</Text>
+            <Text
+              style={apiEnabled ? styles.linkCtaText : styles.linkDisabledText}
+            >
+              {linking ? "Connecting…" : "Preview link my accounts"}
+            </Text>
           </Pressable>
         </View>
 
@@ -173,11 +258,16 @@ export default function AddRewardsScreen() {
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <Pressable
             onPress={onSubmit}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.cta,
+              pressed && styles.ctaPressed,
+              submitting && styles.ctaDisabled,
+            ]}
             accessibilityRole="button"
           >
             <Text style={styles.ctaText}>
-              {params.from === "onboarding" ? "Set my goals" : "See my value"}
+              {params.from === "onboarding" ? "Continue" : "See my value"}
             </Text>
           </Pressable>
         </View>
@@ -280,6 +370,19 @@ const styles = StyleSheet.create({
     color: "#4b5563",
     lineHeight: 20,
   },
+  linkCta: {
+    marginTop: 12,
+    backgroundColor: "#2563eb",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  linkCtaPressed: { opacity: 0.92 },
+  linkCtaText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
   linkDisabled: {
     marginTop: 12,
     backgroundColor: "#e5e7eb",
@@ -331,6 +434,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.9 },
+  ctaDisabled: { opacity: 0.7 },
   ctaText: {
     color: "#fff",
     fontSize: 17,

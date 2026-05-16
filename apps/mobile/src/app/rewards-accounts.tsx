@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,6 +19,7 @@ import {
   PROGRAM_LABELS,
 } from "../constants/programs";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
+import { persistRewardBalances } from "../lib/persistRewardBalances";
 import type { RewardBalance, RewardProgramId } from "../types/models";
 import {
   formatAmountInputDisplay,
@@ -56,6 +58,7 @@ export default function RewardsAccountsScreen() {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const rows = useMemo(() => {
     return selectedPrograms.map((programId) => ({
@@ -95,17 +98,28 @@ export default function RewardsAccountsScreen() {
     });
   }
 
-  function onSave() {
+  async function onSave() {
     const next: RewardBalance[] = selectedPrograms.map((programId) => ({
       programId,
       amount: parseAmountInput(inputs[programId] ?? ""),
     }));
-    setRewardBalances(next);
-    refreshDashboardData();
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/dashboard");
+    setSaving(true);
+    try {
+      const saved = await persistRewardBalances(next);
+      setRewardBalances(saved);
+      refreshDashboardData();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/dashboard");
+      }
+    } catch {
+      Alert.alert(
+        "Could not save",
+        "Your balances could not be saved. Check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
