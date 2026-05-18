@@ -1,7 +1,7 @@
 import { updateUserProfileInputSchema } from "@points-exchange/shared";
 import type { FastifyPluginAsync } from "fastify";
 import { requireAuth } from "../lib/auth.js";
-import { getUserProfile, updateUserGoalPreference } from "../lib/profiles.js";
+import { getUserProfile, updateUserProfile } from "../lib/profiles.js";
 import { createUserSupabase } from "../lib/supabase.js";
 
 export const profileRoutes: FastifyPluginAsync = async (app) => {
@@ -32,10 +32,10 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
 
     const supabase = createUserSupabase(request.accessToken!);
     try {
-      const profile = await updateUserGoalPreference(
+      const profile = await updateUserProfile(
         supabase,
         request.userId!,
-        parsed.data.goalPreference,
+        parsed.data,
       );
       return { profile };
     } catch (err) {

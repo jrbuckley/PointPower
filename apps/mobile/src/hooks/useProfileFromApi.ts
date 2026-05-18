@@ -4,10 +4,10 @@ import { fetchProfile } from "../lib/profileApi";
 import { useAppStore } from "../store/appStore";
 import { useAuthStore } from "../store/authStore";
 
-/** Loads goal preference from the API when the user is signed in. */
+/** Loads profile goals from the API when the user is signed in. */
 export function useProfileFromApi(enabled: boolean) {
   const user = useAuthStore((s) => s.user);
-  const setGoalPreference = useAppStore((s) => s.setGoalPreference);
+  const setProfileGoals = useAppStore((s) => s.setProfileGoals);
 
   useEffect(() => {
     if (!enabled || !user || !isApiConfigured()) {
@@ -20,7 +20,7 @@ export function useProfileFromApi(enabled: boolean) {
       try {
         const profile = await fetchProfile();
         if (!cancelled) {
-          setGoalPreference(profile.goalPreference);
+          setProfileGoals(profile.goalPreference, profile.customGoalCode);
         }
       } catch {
         // Keep local preference if the API is unreachable.
@@ -30,5 +30,5 @@ export function useProfileFromApi(enabled: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, user?.id, setGoalPreference]);
+  }, [enabled, user?.id, setProfileGoals]);
 }

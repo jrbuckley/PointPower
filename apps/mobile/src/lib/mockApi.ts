@@ -1,9 +1,9 @@
 import type {
   DashboardSummary,
-  GoalPreference,
   RecommendationDetail,
   RewardBalance,
 } from "../types/models";
+import type { GoalContext } from "./goalContext";
 import {
   generateRecommendations,
   valueRangeForBalances,
@@ -24,27 +24,27 @@ function dollarsFor(points: number, cpp: number): number {
 
 export async function getDashboardSummary(input: {
   rewardBalances: RewardBalance[];
-  goalPreference: GoalPreference;
+  goal: GoalContext;
 }): Promise<DashboardSummary> {
   await delay(180);
 
-  const { rewardBalances, goalPreference } = input;
+  const { rewardBalances, goal } = input;
   const totalPoints = Math.round(
     rewardBalances.reduce((s, b) => s + Math.max(0, b.amount), 0),
   );
 
-  const { min: valueRangeMin, max: valueRangeMax } =
-    valueRangeForBalances(rewardBalances);
-
-  const recommendations = generateRecommendations(
+  const { min: valueRangeMin, max: valueRangeMax } = valueRangeForBalances(
     rewardBalances,
-    goalPreference,
+    goal,
   );
+
+  const recommendations = generateRecommendations(rewardBalances, goal);
 
   const cashbackD = dollarsFor(totalPoints, 1);
   const portalD = dollarsFor(totalPoints, 1.25);
-  const transferD = recommendations.find((r) => r.id === "BEST_VALUE")
-    ?.estimatedDollarValue ?? dollarsFor(totalPoints, 1.75);
+  const transferD =
+    recommendations.find((r) => r.id === "BEST_VALUE")?.estimatedDollarValue ??
+    dollarsFor(totalPoints, 1.75);
 
   const comparison = [
     {
@@ -73,9 +73,11 @@ export async function getDashboardSummary(input: {
   const insightMessage =
     totalPoints === 0
       ? "Add your balances to see personalized estimates."
-      : uplift > 0
-        ? `Your strongest option could be worth about ${uplift}% more than simple cash back.`
-        : "Compare options below to see what fits your style.";
+      : goal.goalPreference === "CUSTOM"
+        ? "Suggestions are tuned to your custom focus—save to refresh rankings."
+        : uplift > 0
+          ? `Your strongest option could be worth about ${uplift}% more than simple cash back.`
+          : "Compare options below to see what fits your style.";
 
   return {
     totalPoints,
@@ -129,24 +131,18 @@ const detailCopy: Record<string, DetailExtra> = {
 export async function getRecommendationDetail(input: {
   id: string;
   rewardBalances: RewardBalance[];
-  goalPreference: GoalPreference;
+  goal: GoalContext;
 }): Promise<RecommendationDetail | null> {
   await delay(150);
 
-  const recs = generateRecommendations(
-    input.rewardBalances,
-    input.goalPreference,
-  );
+  const recs = generateRecommendations(input.rewardBalances, input.goal);
   const base = recs.find((r) => r.id === input.id);
   if (!base) return null;
 
   const extra = detailCopy[input.id];
   if (!extra) return null;
 
-  const cashbackValue = dollarsFor(
-    base.pointsUsed,
-    1,
-  );
+  const cashbackValue = dollarsFor(base.pointsUsed, 1);
   const vsCashbackExtraDollars = roundMoney(
     base.estimatedDollarValue - cashbackValue,
   );

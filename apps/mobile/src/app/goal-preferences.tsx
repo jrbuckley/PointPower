@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -9,13 +9,21 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  CUSTOM_GOAL_CATALOG,
+  DEFAULT_CUSTOM_GOAL_CODE,
+} from "../constants/customGoals";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
-import { persistGoalPreference } from "../lib/persistGoalPreference";
-import type { GoalPreference } from "../types/models";
+import { persistProfileGoals } from "../lib/persistGoalPreference";
+import type { CustomGoalCode, GoalPreference } from "../types/models";
 import { useAppStore } from "../store/appStore";
 
-const OPTIONS: { value: GoalPreference; title: string; subtitle: string }[] = [
+const PRESET_OPTIONS: {
+  value: Exclude<GoalPreference, "CUSTOM">;
+  title: string;
+  subtitle: string;
+}[] = [
   {
     value: "MAX_VALUE",
     title: "Maximize value",
@@ -38,30 +46,67 @@ const OPTIONS: { value: GoalPreference; title: string; subtitle: string }[] = [
   },
 ];
 
+const CUSTOM_OPTION = {
+  value: "CUSTOM" as const,
+  title: "Custom goal",
+  subtitle:
+    "Get specific—international flights, luxury hotels, and more. (Trip planning comes later under Travel focused.)",
+};
+
 export default function GoalPreferencesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ from?: string }>();
   const goalPreference = useAppStore((s) => s.goalPreference);
-  const setGoalPreference = useAppStore((s) => s.setGoalPreference);
+  const customGoalCode = useAppStore((s) => s.customGoalCode);
+  const setProfileGoals = useAppStore((s) => s.setProfileGoals);
   const fromOnboarding = params.from === "onboarding";
 
   useProfileFromApi(true);
 
-  const [draft, setDraft] = useState<GoalPreference>(goalPreference);
+  const [draftPreference, setDraftPreference] =
+    useState<GoalPreference>(goalPreference);
+  const [draftCustomCode, setDraftCustomCode] = useState<CustomGoalCode>(
+    customGoalCode ?? DEFAULT_CUSTOM_GOAL_CODE,
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setDraft(goalPreference);
-  }, [goalPreference]);
+    setDraftPreference(goalPreference);
+    setDraftCustomCode(customGoalCode ?? DEFAULT_CUSTOM_GOAL_CODE);
+  }, [goalPreference, customGoalCode]);
 
-  const hasChanges = draft !== goalPreference;
+  const hasChanges = useMemo(() => {
+    if (draftPreference !== goalPreference) return true;
+    if (draftPreference === "CUSTOM") {
+      return draftCustomCode !== customGoalCode;
+    }
+    return false;
+  }, [
+    draftPreference,
+    goalPreference,
+    draftCustomCode,
+    customGoalCode,
+  ]);
+
+  const customSaveBlocked =
+    draftPreference === "CUSTOM" && !draftCustomCode;
 
   async function onSave(navigateAfter = false) {
+    if (customSaveBlocked) {
+      Alert.alert(
+        "Choose a focus",
+        "Select what you want your points to work toward.",
+      );
+      return;
+    }
+
     setSaving(true);
     try {
-      const saved = await persistGoalPreference(draft);
-      setGoalPreference(saved);
+      const customCode =
+        draftPreference === "CUSTOM" ? draftCustomCode : null;
+      const saved = await persistProfileGoals(draftPreference, customCode);
+      setProfileGoals(saved.goalPreference, saved.customGoalCode);
       refreshDashboardData();
       if (navigateAfter) {
         router.replace("/dashboard");
@@ -78,6 +123,17 @@ export default function GoalPreferencesScreen() {
     }
   }
 
+  function selectPreset(value: Exclude<GoalPreference, "CUSTOM">) {
+    setDraftPreference(value);
+  }
+
+  function selectCustom() {
+    setDraftPreference("CUSTOM");
+    if (!draftCustomCode) {
+      setDraftCustomCode(DEFAULT_CUSTOM_GOAL_CODE);
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -86,15 +142,16 @@ export default function GoalPreferencesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Choose what “good” means for you. Your dashboard reorders suggestions
-          after you save.
+          Choose what “good” means for you. Pick a preset or define a custom
+          focus—your dashboard reorders after you save.
         </Text>
-        {OPTIONS.map((opt) => {
-          const selected = draft === opt.value;
+
+        {PRESET_OPTIONS.map((opt) => {
+          const selected = draftPreference === opt.value;
           return (
             <Pressable
               key={opt.value}
-              onPress={() => setDraft(opt.value)}
+              onPress={() => selectPreset(opt.value)}
               style={({ pressed }) => [
                 styles.option,
                 selected && styles.optionSelected,
@@ -113,16 +170,78 @@ export default function GoalPreferencesScreen() {
             </Pressable>
           );
         })}
+
+        <Pressable
+          onPress={selectCustom}
+          style={({ pressed }) => [
+            styles.option,
+            draftPreference === "CUSTOM" && styles.optionSelected,
+            pressed && styles.optionPressed,
+          ]}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: draftPreference === "CUSTOM" }}
+        >
+          <View style={styles.radioOuter}>
+            {draftPreference === "CUSTOM" ? (
+              <View style={styles.radioInner} />
+            ) : null}
+          </View>
+          <View style={styles.optionText}>
+            <Text style={styles.optionTitle}>{CUSTOM_OPTION.title}</Text>
+            <Text style={styles.optionSub}>{CUSTOM_OPTION.subtitle}</Text>
+          </View>
+        </Pressable>
+
+        {draftPreference === "CUSTOM" ? (
+          <View style={styles.customSection}>
+            <Text style={styles.customHeading}>What are you optimizing for?</Text>
+            <Text style={styles.customHint}>
+              These tune recommendations today. Planning a full trip itinerary
+              will be a separate feature under Travel focused.
+            </Text>
+            {CUSTOM_GOAL_CATALOG.map((item) => {
+              const selected = draftCustomCode === item.code;
+              return (
+                <Pressable
+                  key={item.code}
+                  onPress={() => setDraftCustomCode(item.code)}
+                  style={({ pressed }) => [
+                    styles.customRow,
+                    selected && styles.customRowSelected,
+                    pressed && styles.optionPressed,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <View style={styles.customRowText}>
+                    <Text style={styles.customTitle}>{item.title}</Text>
+                    <Text style={styles.customSub}>{item.subtitle}</Text>
+                  </View>
+                  <Text style={selected ? styles.customCheckOn : styles.customCheck}>
+                    {selected ? "✓" : ""}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <Pressable
           onPress={() => void onSave(fromOnboarding)}
-          disabled={saving || (!fromOnboarding && !hasChanges)}
+          disabled={
+            saving ||
+            customSaveBlocked ||
+            (!fromOnboarding && !hasChanges)
+          }
           style={({ pressed }) => [
             styles.cta,
             pressed && styles.ctaPressed,
-            (saving || (!fromOnboarding && !hasChanges)) && styles.ctaDisabled,
+            (saving ||
+              customSaveBlocked ||
+              (!fromOnboarding && !hasChanges)) &&
+              styles.ctaDisabled,
           ]}
           accessibilityRole="button"
           accessibilityLabel={
@@ -201,6 +320,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     lineHeight: 20,
+  },
+  customSection: {
+    marginTop: 4,
+    marginBottom: 8,
+    paddingTop: 4,
+  },
+  customHeading: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 6,
+  },
+  customHint: {
+    fontSize: 13,
+    color: "#6b7280",
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  customRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  customRowSelected: {
+    borderColor: "#2563eb",
+    backgroundColor: "#eff6ff",
+  },
+  customRowText: { flex: 1 },
+  customTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  customSub: {
+    fontSize: 13,
+    color: "#6b7280",
+    lineHeight: 18,
+  },
+  customCheck: {
+    width: 22,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "transparent",
+    textAlign: "center",
+  },
+  customCheckOn: {
+    width: 22,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#2563eb",
+    textAlign: "center",
   },
   footer: {
     paddingHorizontal: 20,

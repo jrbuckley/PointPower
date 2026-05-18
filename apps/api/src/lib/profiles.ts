@@ -1,10 +1,16 @@
-import type { GoalPreference, UserProfile } from "@points-exchange/shared";
+import type {
+  CustomGoalCode,
+  GoalPreference,
+  UpdateUserProfileInput,
+  UserProfile,
+} from "@points-exchange/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ProfileRow = {
   id: string;
   display_name: string | null;
   goal_preference: GoalPreference;
+  custom_goal_code: CustomGoalCode | null;
 };
 
 function mapProfile(row: ProfileRow): UserProfile {
@@ -12,6 +18,7 @@ function mapProfile(row: ProfileRow): UserProfile {
     id: row.id,
     displayName: row.display_name,
     goalPreference: row.goal_preference,
+    customGoalCode: row.custom_goal_code,
   };
 }
 
@@ -49,7 +56,7 @@ export async function getUserProfile(
 
   const { data, error } = await supabase
     .from("users_profile")
-    .select("id, display_name, goal_preference")
+    .select("id, display_name, goal_preference, custom_goal_code")
     .eq("id", userId)
     .single();
 
@@ -60,18 +67,24 @@ export async function getUserProfile(
   return mapProfile(data as ProfileRow);
 }
 
-export async function updateUserGoalPreference(
+export async function updateUserProfile(
   supabase: SupabaseClient,
   userId: string,
-  goalPreference: GoalPreference,
+  input: UpdateUserProfileInput,
 ): Promise<UserProfile> {
   await ensureUserProfile(supabase, userId);
 
+  const customGoalCode =
+    input.goalPreference === "CUSTOM" ? (input.customGoalCode ?? null) : null;
+
   const { data, error } = await supabase
     .from("users_profile")
-    .update({ goal_preference: goalPreference })
+    .update({
+      goal_preference: input.goalPreference,
+      custom_goal_code: customGoalCode,
+    })
     .eq("id", userId)
-    .select("id, display_name, goal_preference")
+    .select("id, display_name, goal_preference, custom_goal_code")
     .single();
 
   if (error) {
@@ -79,4 +92,13 @@ export async function updateUserGoalPreference(
   }
 
   return mapProfile(data as ProfileRow);
+}
+
+/** @deprecated Use updateUserProfile */
+export async function updateUserGoalPreference(
+  supabase: SupabaseClient,
+  userId: string,
+  goalPreference: GoalPreference,
+): Promise<UserProfile> {
+  return updateUserProfile(supabase, userId, { goalPreference });
 }

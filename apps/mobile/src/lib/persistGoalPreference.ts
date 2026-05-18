@@ -1,13 +1,20 @@
+import type { CustomGoalCode, GoalPreference } from "../types/models";
 import { isApiConfigured } from "./apiClient";
-import { updateGoalPreference } from "./profileApi";
-import type { GoalPreference } from "../types/models";
+import {
+  updateProfileGoals,
+  type SavedProfileGoals,
+} from "./profileApi";
 
-/** Saves goal preference to the API when configured; otherwise returns input unchanged. */
-export async function persistGoalPreference(
-  preference: GoalPreference,
-): Promise<GoalPreference> {
+/** Saves goal preferences to the API when configured; otherwise returns input unchanged. */
+export async function persistProfileGoals(
+  goalPreference: GoalPreference,
+  customGoalCode: CustomGoalCode | null,
+): Promise<SavedProfileGoals> {
   if (!isApiConfigured()) {
-    return preference;
+    return {
+      goalPreference,
+      customGoalCode: goalPreference === "CUSTOM" ? customGoalCode : null,
+    };
   }
-  return updateGoalPreference(preference);
+  return updateProfileGoals(goalPreference, customGoalCode);
 }

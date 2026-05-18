@@ -10,11 +10,10 @@ export type RewardBalance = {
   amount: number;
 };
 
-export type GoalPreference =
-  | "MAX_VALUE"
-  | "KEEP_IT_SIMPLE"
-  | "TRAVEL_FOCUSED"
-  | "CASHLIKE";
+export type {
+  CustomGoalCode,
+  GoalPreference,
+} from "@points-exchange/shared";
 
 export type RecommendationLabel =
   | "BEST_VALUE"

@@ -159,20 +159,61 @@ export const goalPreferenceSchema = z.enum([
   "KEEP_IT_SIMPLE",
   "TRAVEL_FOCUSED",
   "CASHLIKE",
+  "CUSTOM",
 ]);
 
 export type GoalPreference = z.infer<typeof goalPreferenceSchema>;
+
+/**
+ * Refined redemption focus when `goalPreference` is CUSTOM.
+ * Distinct from future TRAVEL_FOCUSED "trip experience" planning.
+ */
+export const customGoalCodeSchema = z.enum([
+  "INTERNATIONAL_FLIGHTS",
+  "LUXURY_HOTELS",
+  "DOMESTIC_FLIGHTS",
+  "FAMILY_VACATION",
+  "BUSINESS_TRAVEL",
+  "ALL_INCLUSIVE_RESORT",
+  "CRUISE_TRAVEL",
+  "LAST_MINUTE_TRAVEL",
+  "LOUNGE_AND_STATUS",
+  "EVERYDAY_OFFSET",
+]);
+
+export type CustomGoalCode = z.infer<typeof customGoalCodeSchema>;
+
+export const CUSTOM_GOAL_CODES = customGoalCodeSchema.options;
 
 export const userProfileSchema = z.object({
   id: z.string().uuid(),
   displayName: z.string().nullable(),
   goalPreference: goalPreferenceSchema,
+  customGoalCode: customGoalCodeSchema.nullable(),
 });
 
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
-export const updateUserProfileInputSchema = z.object({
-  goalPreference: goalPreferenceSchema,
-});
+export const updateUserProfileInputSchema = z
+  .object({
+    goalPreference: goalPreferenceSchema,
+    customGoalCode: customGoalCodeSchema.nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.goalPreference === "CUSTOM" && !data.customGoalCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "customGoalCode is required when goalPreference is CUSTOM.",
+        path: ["customGoalCode"],
+      });
+    }
+    if (data.goalPreference !== "CUSTOM" && data.customGoalCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "customGoalCode must be null unless goalPreference is CUSTOM.",
+        path: ["customGoalCode"],
+      });
+    }
+  });
 
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileInputSchema>;
