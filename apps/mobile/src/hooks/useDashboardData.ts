@@ -15,6 +15,7 @@ export function useDashboardSummaryQuery() {
   return useQuery({
     queryKey: ["dashboard", rewardBalances, goal] as const,
     queryFn: () => getDashboardSummary({ rewardBalances, goal }),
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -33,5 +34,6 @@ export function useRecommendationDetailQuery(id: string | undefined) {
         goal,
       }),
     enabled: !!id,
+    placeholderData: (previous) => previous,
   });
 }

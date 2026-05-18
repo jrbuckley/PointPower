@@ -13,7 +13,10 @@ import {
   CUSTOM_GOAL_CATALOG,
   DEFAULT_CUSTOM_GOAL_CODE,
 } from "../constants/customGoals";
+import { GoalPreferencesSkeleton } from "../components/loading/GoalPreferencesSkeleton";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
+import { isApiConfigured } from "../lib/apiClient";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
 import { persistProfileGoals } from "../lib/persistGoalPreference";
 import type { CustomGoalCode, GoalPreference } from "../types/models";
@@ -62,7 +65,8 @@ export default function GoalPreferencesScreen() {
   const setProfileGoals = useAppStore((s) => s.setProfileGoals);
   const fromOnboarding = params.from === "onboarding";
 
-  useProfileFromApi(true);
+  const { isLoading: profileLoading } = useProfileFromApi(true);
+  const showSkeleton = isApiConfigured() && profileLoading;
 
   const [draftPreference, setDraftPreference] =
     useState<GoalPreference>(goalPreference);
@@ -146,6 +150,10 @@ export default function GoalPreferencesScreen() {
           focus—your dashboard reorders after you save.
         </Text>
 
+        {showSkeleton ? (
+          <GoalPreferencesSkeleton />
+        ) : (
+          <>
         {PRESET_OPTIONS.map((opt) => {
           const selected = draftPreference === opt.value;
           return (
@@ -225,6 +233,8 @@ export default function GoalPreferencesScreen() {
             })}
           </View>
         ) : null}
+          </>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -248,13 +258,11 @@ export default function GoalPreferencesScreen() {
             fromOnboarding ? "See my value" : "Save changes"
           }
         >
-          <Text style={styles.ctaText}>
-            {saving
-              ? "Saving…"
-              : fromOnboarding
-                ? "See my value"
-                : "Save changes"}
-          </Text>
+          <LoadingButtonLabel
+            loading={saving}
+            label={fromOnboarding ? "See my value" : "Save changes"}
+            loadingLabel="Saving…"
+          />
         </Pressable>
       </View>
     </View>

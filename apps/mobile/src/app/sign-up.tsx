@@ -1,7 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
 import { useAppStore } from "../store/appStore";
 import { useAuthStore } from "../store/authStore";
 
@@ -115,11 +115,11 @@ export default function SignUpScreen() {
           accessibilityRole="button"
           accessibilityLabel="Create account"
         >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.ctaText}>Create account</Text>
-          )}
+          <LoadingButtonLabel
+            loading={submitting}
+            label="Create account"
+            loadingLabel="Creating account…"
+          />
         </Pressable>
 
         <View style={styles.footer}>

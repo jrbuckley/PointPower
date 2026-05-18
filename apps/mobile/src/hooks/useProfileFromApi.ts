@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { isApiConfigured } from "../lib/apiClient";
 import { fetchProfile } from "../lib/profileApi";
 import { useAppStore } from "../store/appStore";
@@ -8,13 +8,18 @@ import { useAuthStore } from "../store/authStore";
 export function useProfileFromApi(enabled: boolean) {
   const user = useAuthStore((s) => s.user);
   const setProfileGoals = useAppStore((s) => s.setProfileGoals);
+  const [isLoading, setIsLoading] = useState(
+    () => enabled && isApiConfigured() && Boolean(user),
+  );
 
   useEffect(() => {
     if (!enabled || !user || !isApiConfigured()) {
+      setIsLoading(false);
       return;
     }
 
     let cancelled = false;
+    setIsLoading(true);
 
     (async () => {
       try {
@@ -24,6 +29,10 @@ export function useProfileFromApi(enabled: boolean) {
         }
       } catch {
         // Keep local preference if the API is unreachable.
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     })();
 
@@ -31,4 +40,6 @@ export function useProfileFromApi(enabled: boolean) {
       cancelled = true;
     };
   }, [enabled, user?.id, setProfileGoals]);
+
+  return { isLoading };
 }

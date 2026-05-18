@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RewardBalanceInputRow } from "../components/RewardBalanceInputRow";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
 import { PROGRAM_CATALOG, PROGRAM_IDS, PROGRAM_LABELS } from "../constants/programs";
 import { isApiConfigured } from "../lib/apiClient";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
@@ -211,11 +212,15 @@ export default function AddRewardsScreen() {
             accessibilityRole="button"
             accessibilityState={{ disabled: !apiEnabled || linking }}
           >
-            <Text
-              style={apiEnabled ? styles.linkCtaText : styles.linkDisabledText}
-            >
-              {linking ? "Connecting…" : "Preview link my accounts"}
-            </Text>
+            {apiEnabled ? (
+              <LoadingButtonLabel
+                loading={linking}
+                label="Preview link my accounts"
+                loadingLabel="Connecting…"
+              />
+            ) : (
+              <Text style={styles.linkDisabledText}>Preview link my accounts</Text>
+            )}
           </Pressable>
         </View>
 
@@ -266,9 +271,13 @@ export default function AddRewardsScreen() {
             ]}
             accessibilityRole="button"
           >
-            <Text style={styles.ctaText}>
-              {params.from === "onboarding" ? "Continue" : "See my value"}
-            </Text>
+            <LoadingButtonLabel
+              loading={submitting}
+              label={
+                params.from === "onboarding" ? "Set my goals" : "See my value"
+              }
+              loadingLabel="Saving…"
+            />
           </Pressable>
         </View>
         </View>

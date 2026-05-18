@@ -1,5 +1,6 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingSpinner } from "../components/loading/LoadingSpinner";
 import { useAppBootstrapReady } from "../hooks/useAppBootstrapReady";
 import { useAppStore } from "../store/appStore";
 import { useAuthStore } from "../store/authStore";
@@ -15,8 +16,7 @@ export default function Index() {
     return (
       <View style={styles.boot}>
         <Text style={styles.brand}>Points value</Text>
-        <ActivityIndicator size="large" color="#2563eb" style={styles.spinner} />
-        <Text style={styles.hint}>Loading…</Text>
+        <LoadingSpinner message="Getting things ready…" />
       </View>
     );
   }
@@ -45,12 +45,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#111827",
     marginBottom: 20,
-  },
-  spinner: {
-    marginBottom: 12,
-  },
-  hint: {
-    fontSize: 15,
-    color: "#6b7280",
   },
 });

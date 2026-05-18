@@ -1,25 +1,26 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { DifficultyBadge } from "../../components/DifficultyBadge";
+import { LoadingSpinner } from "../../components/loading/LoadingSpinner";
+import { RecommendationDetailSkeleton } from "../../components/loading/RecommendationDetailSkeleton";
 import { useRecommendationDetailQuery } from "../../hooks/useDashboardData";
 import { formatDollars, formatPoints } from "../../utils/format";
 
 export default function RecommendationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data, isPending, isError } = useRecommendationDetailQuery(id);
+  const { data, isPending, isFetching, isError } = useRecommendationDetailQuery(id);
+  const showSkeleton = !data && (isPending || isFetching);
 
-  if (isPending) {
+  if (showSkeleton) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.scrollGrow}
+        showsVerticalScrollIndicator={false}
+      >
+        <RecommendationDetailSkeleton />
+      </ScrollView>
     );
   }
 
@@ -44,6 +45,11 @@ export default function RecommendationDetailScreen() {
       contentContainerStyle={styles.scroll}
       showsVerticalScrollIndicator={false}
     >
+      {isFetching ? (
+        <View style={styles.refreshing}>
+          <LoadingSpinner message="Updating…" size="small" />
+        </View>
+      ) : null}
       <Text style={styles.title}>{data.title}</Text>
       <Text style={styles.valueLine}>
         Estimated value: {formatDollars(data.estimatedDollarValue)}
@@ -89,9 +95,19 @@ export default function RecommendationDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#f6f7fb",
+  },
+  scrollGrow: {
+    flexGrow: 1,
+  },
   scroll: {
     padding: 20,
     paddingBottom: 40,
+  },
+  refreshing: {
+    marginBottom: 8,
   },
   centered: {
     flex: 1,

@@ -1,6 +1,5 @@
 import { useRouter } from "expo-router";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,19 +8,33 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DashboardEmptyState } from "../components/DashboardEmptyState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ValueRangeSummaryCard } from "../components/ValueRangeSummaryCard";
+import { DashboardSkeleton } from "../components/loading/DashboardSkeleton";
+import { isApiConfigured } from "../lib/apiClient";
 import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
+import { isDashboardEmpty } from "../lib/rewardTotals";
+import { useAppStore } from "../store/appStore";
 import { formatDollars } from "../utils/format";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  useRewardAccountsFromApi(true);
-  useProfileFromApi(true);
-  const { data, isPending, isRefetching, refetch } = useDashboardSummaryQuery();
+  const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
+  const { isLoading: profileLoading } = useProfileFromApi(true);
+  const rewardBalances = useAppStore((s) => s.rewardBalances);
+  const showEmpty = isDashboardEmpty(rewardBalances);
+  const { data, isPending, isFetching, isRefetching, refetch } =
+    useDashboardSummaryQuery();
+
+  const apiHydrating =
+    isApiConfigured() && (balancesLoading || profileLoading);
+  const showSkeleton =
+    !showEmpty && !data && (isPending || isFetching || apiHydrating);
+  const showContent = !showEmpty && data;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -55,20 +68,24 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {isPending && !data ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Estimating your value…</Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {data ? (
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !!data}
+            onRefresh={() => refetch()}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {showEmpty ? (
+          <DashboardEmptyState
+            onAddPrograms={() => router.push("/rewards-accounts")}
+            onSetGoals={() => router.push("/goal-preferences")}
+          />
+        ) : showSkeleton ? (
+          <DashboardSkeleton />
+        ) : showContent ? (
             <>
               <ValueRangeSummaryCard
                 totalPoints={data.totalPoints}
@@ -119,9 +136,8 @@ export default function DashboardScreen() {
                 <Text style={styles.insightText}>{data.insightMessage}</Text>
               </View>
             </>
-          ) : null}
-        </ScrollView>
-      )}
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
@@ -158,16 +174,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: 40,
-  },
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    color: "#6b7280",
   },
   sectionTitle: {
     fontSize: 18,

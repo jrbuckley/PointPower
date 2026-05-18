@@ -13,11 +13,15 @@ import {
   View,
 } from "react-native";
 import { RewardBalanceInputRow } from "../components/RewardBalanceInputRow";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
+import { ProgramsEditorSkeleton } from "../components/loading/ProgramsEditorSkeleton";
 import {
   PROGRAM_CATALOG,
   PROGRAM_IDS,
   PROGRAM_LABELS,
 } from "../constants/programs";
+import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
+import { isApiConfigured } from "../lib/apiClient";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
 import { persistRewardBalances } from "../lib/persistRewardBalances";
 import type { RewardBalance, RewardProgramId } from "../types/models";
@@ -47,8 +51,10 @@ function normalizeSelectedPrograms(balances: RewardBalance[]): RewardProgramId[]
 }
 
 export default function RewardsAccountsScreen() {
+  const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const setRewardBalances = useAppStore((s) => s.setRewardBalances);
+  const showSkeleton = isApiConfigured() && balancesLoading;
 
   const [inputs, setInputs] = useState<Record<string, string>>(() =>
     buildInitialStrings(rewardBalances),
@@ -138,6 +144,10 @@ export default function RewardsAccountsScreen() {
           <Text style={styles.lead}>
             Update your totals anytime. We’ll refresh your dashboard estimates.
           </Text>
+          {showSkeleton ? (
+            <ProgramsEditorSkeleton />
+          ) : (
+            <>
           <View style={styles.card}>
           <Pressable
             onPress={() => setPickerOpen(true)}
@@ -168,11 +178,22 @@ export default function RewardsAccountsScreen() {
         </View>
         <Pressable
           onPress={onSave}
-          style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed && styles.ctaPressed,
+            saving && styles.ctaDisabled,
+          ]}
           accessibilityRole="button"
         >
-          <Text style={styles.ctaText}>Save changes</Text>
+          <LoadingButtonLabel
+            loading={saving}
+            label="Save changes"
+            loadingLabel="Saving…"
+          />
         </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -281,6 +302,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.9 },
+  ctaDisabled: { opacity: 0.7 },
   ctaText: {
     color: "#fff",
     fontSize: 17,
