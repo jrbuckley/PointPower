@@ -4,6 +4,7 @@ import type {
   RewardBalance,
 } from "../types/models";
 import type { GoalContext } from "./goalContext";
+import { buildRecommendationDetail } from "./recommendationDetail";
 import {
   generateRecommendations,
   valueRangeForBalances,
@@ -89,45 +90,6 @@ export async function getDashboardSummary(input: {
   };
 }
 
-type DetailExtra = {
-  whyRecommended: string;
-  effortExplanation: string;
-  unlockExamples: string[];
-};
-
-const detailCopy: Record<string, DetailExtra> = {
-  BEST_VALUE: {
-    whyRecommended:
-      "This path usually turns each point into more dollars when you’re willing to spend a little time booking through partners.",
-    effortExplanation:
-      "You may need to move points to an airline or hotel program, then book there. It’s a few extra steps, but the upside is often meaningful.",
-    unlockExamples: [
-      "A long weekend flight that would cost hundreds in cash",
-      "A hotel stay where the room rate is high but points cover it well",
-    ],
-  },
-  EASIEST: {
-    whyRecommended:
-      "You get money back in the bank or on your statement without hunting for award space.",
-    effortExplanation:
-      "Mostly a few taps in your card’s app or website—great when you want clarity over squeezing every penny.",
-    unlockExamples: [
-      "Paying down your balance or covering everyday purchases",
-      "A simple statement credit when you don’t want to think about travel",
-    ],
-  },
-  BEST_FOR_TRAVEL: {
-    whyRecommended:
-      "You stay inside your bank’s travel tools, so it’s easier than moving points around while still beating plain cash back.",
-    effortExplanation:
-      "Search and book like a normal travel site. Value is usually better than cash back, with less work than partner transfers.",
-    unlockExamples: [
-      "Round-trip flights for a trip you already planned",
-      "A hotel night booked in the same checkout flow as flights",
-    ],
-  },
-};
-
 export async function getRecommendationDetail(input: {
   id: string;
   rewardBalances: RewardBalance[];
@@ -139,17 +101,5 @@ export async function getRecommendationDetail(input: {
   const base = recs.find((r) => r.id === input.id);
   if (!base) return null;
 
-  const extra = detailCopy[input.id];
-  if (!extra) return null;
-
-  const cashbackValue = dollarsFor(base.pointsUsed, 1);
-  const vsCashbackExtraDollars = roundMoney(
-    base.estimatedDollarValue - cashbackValue,
-  );
-
-  return {
-    ...base,
-    ...extra,
-    vsCashbackExtraDollars,
-  };
+  return buildRecommendationDetail(base, input.rewardBalances, input.goal);
 }

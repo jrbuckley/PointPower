@@ -8,14 +8,30 @@ export function RecommendationDetailSkeleton() {
       <SkeletonBox height={22} width="60%" style={styles.gapMd} />
       <SkeletonBox height={28} width={96} borderRadius={14} style={styles.gapMd} />
 
-      {[0, 1, 2, 3].map((i) => (
-        <View key={i} style={styles.block}>
-          <SkeletonBox height={18} width="45%" />
-          <View style={styles.gapSm}>
-            <SkeletonLines lines={3} />
+      <View style={styles.goalCard}>
+        <SkeletonBox height={20} width="75%" />
+        <SkeletonLines lines={2} lastLineWidth="90%" />
+        <View style={styles.statRow}>
+          <SkeletonBox height={48} style={styles.stat} />
+          <SkeletonBox height={48} style={styles.stat} />
+          <SkeletonBox height={48} style={styles.stat} />
+        </View>
+      </View>
+
+      <SkeletonBox height={18} width={160} style={styles.gapLg} />
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={styles.offerCard}>
+          <SkeletonBox height={18} width="80%" />
+          <SkeletonBox height={14} width="50%" style={styles.gapSm} />
+          <View style={styles.offerMetrics}>
+            <SkeletonBox height={36} width="40%" />
+            <SkeletonBox height={36} width="40%" />
           </View>
         </View>
       ))}
+
+      <SkeletonBox height={48} borderRadius={12} style={styles.gapMd} />
+      <SkeletonBox height={48} borderRadius={12} />
     </View>
   );
 }
@@ -25,9 +41,38 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  block: {
-    marginTop: 22,
+  goalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginTop: 16,
+    marginBottom: 20,
+    gap: 12,
   },
-  gapSm: { marginTop: 10 },
+  statRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  stat: {
+    flex: 1,
+    borderRadius: 10,
+  },
+  offerCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+  },
+  offerMetrics: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  gapSm: { marginTop: 8 },
   gapMd: { marginTop: 12 },
+  gapLg: { marginTop: 20, marginBottom: 10 },
 });

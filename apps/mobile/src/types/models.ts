@@ -48,9 +48,61 @@ export type DashboardSummary = {
   insightMessage: string;
 };
 
+export type GoalCoverageStatus = "full" | "partial" | "stretch";
+
+export type GoalFitSummary = {
+  status: GoalCoverageStatus;
+  headline: string;
+  detail: string;
+  targetLabel: string;
+  pointsYouHave: number;
+  pointsForFullCoverage: number;
+  percentCovered: number;
+  pointsShort: number;
+  cashGap: number;
+};
+
+export type RedemptionOffer = {
+  id: string;
+  title: string;
+  partner: string;
+  programLabel: string;
+  pointsRequired: number;
+  estimatedCashValue: number;
+  coverageStatus: GoalCoverageStatus;
+  expiresAt: string;
+  expiresLabel: string;
+  availabilityNote: string;
+  highlight?: string;
+};
+
+export type RecommendationAction = {
+  id: string;
+  label: string;
+  description: string;
+  kind: "primary" | "secondary";
+  actionType:
+    | "open_portal"
+    | "start_transfer"
+    | "statement_credit"
+    | "save_offer"
+    | "set_reminder"
+    | "compare_alternatives";
+};
+
+export type RecommendationStep = {
+  order: number;
+  title: string;
+  detail?: string;
+};
+
 export type RecommendationDetail = Recommendation & {
   whyRecommended: string;
   vsCashbackExtraDollars: number;
   effortExplanation: string;
   unlockExamples: string[];
+  goalFit: GoalFitSummary;
+  offers: RedemptionOffer[];
+  nextSteps: RecommendationStep[];
+  actions: RecommendationAction[];
 };

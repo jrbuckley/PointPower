@@ -32,7 +32,7 @@ export function RecommendationCard({ recommendation, onPress }: Props) {
         </Text>
         <DifficultyBadge difficulty={recommendation.difficulty} />
       </View>
-      <Text style={styles.hint}>Tap for details</Text>
+      <Text style={styles.hint}>Tap to see offers & next steps</Text>
     </Pressable>
   );
 }
