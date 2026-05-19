@@ -28,7 +28,7 @@ const ACTION_MESSAGES: Record<
   set_reminder: {
     title: "Reminder set",
     message:
-      "Expiry reminders are coming soon. We’ll notify you before this offer window closes.",
+      "Expiry reminders are coming soon. We’ll notify you before this offer’s window closes.",
   },
   compare_alternatives: {
     title: "Compare paths",

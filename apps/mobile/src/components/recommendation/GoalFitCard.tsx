@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import { CollapsibleCard } from "../CollapsibleCard";
 import type { GoalFitSummary } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
 
@@ -15,105 +16,68 @@ type Props = {
 export function GoalFitCard({ goalFit }: Props) {
   const s = STATUS_STYLES[goalFit.status];
 
+  const summary =
+    goalFit.status === "full"
+      ? `${goalFit.percentCovered}% of your goal`
+      : `${goalFit.percentCovered}% covered · ${formatPoints(goalFit.pointsShort)} pts to go`;
+
   return (
-    <View style={[styles.card, { backgroundColor: s.bg, borderColor: s.border }]}>
-      <View style={styles.header}>
-        <Text style={styles.headline}>{goalFit.headline}</Text>
+    <CollapsibleCard
+      title={goalFit.headline}
+      summary={summary}
+      backgroundColor={s.bg}
+      borderColor={s.border}
+      style={styles.card}
+      headerRight={
         <View style={[styles.badge, { backgroundColor: s.badge }]}>
           <Text style={styles.badgeText}>{s.label}</Text>
         </View>
-      </View>
+      }
+    >
       <Text style={styles.detail}>{goalFit.detail}</Text>
-      <View style={styles.stats}>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Your points</Text>
-          <Text style={styles.statValue}>{formatPoints(goalFit.pointsYouHave)}</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Typical target</Text>
-          <Text style={styles.statValue}>
-            {formatPoints(goalFit.pointsForFullCoverage)}
-          </Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statLabel}>Covered</Text>
-          <Text style={styles.statValue}>{goalFit.percentCovered}%</Text>
-        </View>
-      </View>
+      <Text style={styles.meta}>
+        {formatPoints(goalFit.pointsYouHave)} pts of{" "}
+        {formatPoints(goalFit.pointsForFullCoverage)} typical for this goal
+      </Text>
       {goalFit.status !== "full" ? (
         <Text style={styles.gap}>
-          Gap: {formatPoints(goalFit.pointsShort)} pts (~{formatDollars(goalFit.cashGap)})
+          Gap: ~{formatDollars(goalFit.cashGap)} at typical rates
         </Text>
       ) : null}
-      <Text style={styles.target}>Goal: {goalFit.targetLabel}</Text>
-    </View>
+      <Text style={styles.target}>{goalFit.targetLabel}</Text>
+    </CollapsibleCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
     marginBottom: 20,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 8,
-  },
-  headline: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#111827",
-    lineHeight: 24,
-  },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 20,
   },
   badgeText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
   },
   detail: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#374151",
-    lineHeight: 22,
-    marginBottom: 14,
+    lineHeight: 21,
+    marginTop: 12,
+    marginBottom: 8,
   },
-  stats: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 10,
-  },
-  stat: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.65)",
-    borderRadius: 10,
-    padding: 10,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  gap: {
+  meta: {
     fontSize: 14,
     fontWeight: "600",
+    color: "#111827",
+    marginBottom: 6,
+  },
+  gap: {
+    fontSize: 13,
     color: "#4b5563",
     marginBottom: 6,
   },

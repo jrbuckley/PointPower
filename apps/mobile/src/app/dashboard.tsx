@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -8,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CollapsibleSection } from "../components/CollapsibleSection";
 import { DashboardEmptyState } from "../components/DashboardEmptyState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ValueRangeSummaryCard } from "../components/ValueRangeSummaryCard";
@@ -17,7 +19,6 @@ import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
 import { useSavedOffersHydration } from "../hooks/useSavedOffers";
-import { useSavedOffersStore } from "../store/savedOffersStore";
 import { isDashboardEmpty } from "../lib/rewardTotals";
 import { useAppStore } from "../store/appStore";
 import { formatDollars } from "../utils/format";
@@ -25,10 +26,10 @@ import { formatDollars } from "../utils/format";
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
   const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
   const { isLoading: profileLoading } = useProfileFromApi(true);
   useSavedOffersHydration(true);
-  const savedCount = useSavedOffersStore((s) => s.refs.length);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const showEmpty = isDashboardEmpty(rewardBalances);
   const { data, isPending, isFetching, isRefetching, refetch } =
@@ -40,29 +41,16 @@ export default function DashboardScreen() {
     !showEmpty && !data && (isPending || isFetching || apiHydrating);
   const showContent = !showEmpty && data;
 
+  function navigate(path: "/saved-offers" | "/goal-preferences" | "/settings") {
+    setMenuOpen(false);
+    router.push(path);
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.topBar}>
         <Text style={styles.brand}>Points value</Text>
         <View style={styles.topLinks}>
-          <Pressable
-            onPress={() => router.push("/saved-offers")}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Saved offers"
-          >
-            <Text style={styles.link}>
-              Saved{savedCount > 0 ? ` (${savedCount})` : ""}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/goal-preferences")}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Goals"
-          >
-            <Text style={styles.link}>Goals</Text>
-          </Pressable>
           <Pressable
             onPress={() => router.push("/rewards-accounts")}
             hitSlop={8}
@@ -72,25 +60,60 @@ export default function DashboardScreen() {
             <Text style={styles.link}>Programs</Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/settings")}
+            onPress={() => setMenuOpen((v) => !v)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Settings"
+            accessibilityLabel="More menu"
+            accessibilityState={{ expanded: menuOpen }}
           >
-            <Text style={styles.link}>Settings</Text>
+            <Text style={styles.link}>More</Text>
           </Pressable>
         </View>
       </View>
+
+      {menuOpen ? (
+        <View style={styles.menu}>
+          <Pressable
+            onPress={() => navigate("/saved-offers")}
+            style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Saved offers</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigate("/goal-preferences")}
+            style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Goals</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigate("/settings")}
+            style={({ pressed }) => [
+              styles.menuItem,
+              styles.menuItemLast,
+              pressed && styles.menuItemPressed,
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Settings</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !!data}
-            onRefresh={() => refetch()}
+            onRefresh={() => {
+              setMenuOpen(false);
+              refetch();
+            }}
           />
         }
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setMenuOpen(false)}
       >
         {showEmpty ? (
           <DashboardEmptyState
@@ -106,6 +129,10 @@ export default function DashboardScreen() {
                 valueMin={data.valueRangeMin}
                 valueMax={data.valueRangeMax}
               />
+
+              <View style={styles.insight}>
+                <Text style={styles.insightText}>{data.insightMessage}</Text>
+              </View>
 
               <Text style={styles.sectionTitle}>Top options for you</Text>
               <Text style={styles.sectionHint}>
@@ -125,8 +152,11 @@ export default function DashboardScreen() {
                 />
               ))}
 
-              <Text style={styles.sectionTitle}>Quick comparison</Text>
-              <View style={styles.compareCard}>
+              <CollapsibleSection
+                title="Compare all paths"
+                summary="See estimated value across redemption types"
+                defaultOpen={false}
+              >
                 {data.comparison.map((row, i) => (
                   <View
                     key={row.id}
@@ -144,11 +174,7 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 ))}
-              </View>
-
-              <View style={styles.insight}>
-                <Text style={styles.insightText}>{data.insightMessage}</Text>
-              </View>
+              </CollapsibleSection>
             </>
         ) : null}
       </ScrollView>
@@ -166,7 +192,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 8,
     gap: 12,
   },
   brand: {
@@ -186,6 +212,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2563eb",
   },
+  menu: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#f3f4f6",
+  },
+  menuItemPressed: {
+    backgroundColor: "#f9fafb",
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
   scroll: {
     paddingBottom: 40,
   },
@@ -194,6 +245,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#111827",
     marginBottom: 4,
+    marginTop: 8,
   },
   sectionHint: {
     fontSize: 14,
@@ -201,19 +253,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     lineHeight: 20,
   },
-  compareCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    paddingVertical: 4,
-    marginBottom: 20,
-  },
   compareRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#f3f4f6",
   },
@@ -242,6 +286,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: "#bfdbfe",
+    marginBottom: 20,
   },
   insightText: {
     fontSize: 15,

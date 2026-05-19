@@ -19,7 +19,6 @@ type Props = {
   saved?: boolean;
   highlighted?: boolean;
   onPress?: () => void;
-  onToggleSave?: () => void;
 };
 
 export function OfferCard({
@@ -27,79 +26,61 @@ export function OfferCard({
   saved = false,
   highlighted = false,
   onPress,
-  onToggleSave,
 }: Props) {
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
         styles.card,
         highlighted && styles.cardHighlight,
-        saved && styles.cardSaved,
+        pressed && onPress && styles.pressed,
       ]}
+      accessibilityRole={onPress ? "button" : "text"}
     >
-      <Pressable
-        onPress={onPress}
-        disabled={!onPress}
-        style={({ pressed }) => [styles.body, pressed && onPress && styles.pressed]}
-        accessibilityRole={onPress ? "button" : "text"}
-      >
-        <View style={styles.topRow}>
-          <Text style={styles.title}>{offer.title}</Text>
+      <View style={styles.topRow}>
+        <Text style={styles.title}>{offer.title}</Text>
+        <View style={styles.badges}>
+          {saved ? (
+            <View style={styles.savedPill}>
+              <Text style={styles.savedPillText}>Saved</Text>
+            </View>
+          ) : null}
           {offer.highlight ? (
             <View style={styles.highlight}>
               <Text style={styles.highlightText}>{offer.highlight}</Text>
             </View>
           ) : null}
         </View>
-        <Text style={styles.partner}>{offer.partner}</Text>
-        <Text style={styles.via}>via {offer.programLabel}</Text>
+      </View>
+      <Text style={styles.partner}>{offer.partner}</Text>
+      <Text style={styles.via}>via {offer.programLabel}</Text>
 
-        <View style={styles.metrics}>
-          <View>
-            <Text style={styles.metricLabel}>Points needed</Text>
-            <Text style={styles.metricValue}>
-              {formatPoints(offer.pointsRequired)}
-            </Text>
-          </View>
-          <View>
-            <Text style={styles.metricLabel}>Est. cash value</Text>
-            <Text style={styles.metricValue}>
-              {formatDollars(offer.estimatedCashValue)}
-            </Text>
-          </View>
+      <View style={styles.metrics}>
+        <View>
+          <Text style={styles.metricLabel}>Points needed</Text>
+          <Text style={styles.metricValue}>{formatPoints(offer.pointsRequired)}</Text>
         </View>
-
-        <View style={styles.footer}>
-          <Text
-            style={[
-              styles.coverage,
-              { color: COVERAGE_COLORS[offer.coverageStatus] },
-            ]}
-          >
-            {COVERAGE_LABELS[offer.coverageStatus]}
+        <View>
+          <Text style={styles.metricLabel}>Est. cash value</Text>
+          <Text style={styles.metricValue}>
+            {formatDollars(offer.estimatedCashValue)}
           </Text>
-          <Text style={styles.expiry}>{offer.expiresLabel}</Text>
         </View>
-        <Text style={styles.note}>{offer.availabilityNote}</Text>
-      </Pressable>
+      </View>
 
-      {onToggleSave ? (
-        <Pressable
-          onPress={onToggleSave}
-          style={({ pressed }) => [
-            styles.saveBtn,
-            saved && styles.saveBtnActive,
-            pressed && styles.saveBtnPressed,
+      <View style={styles.footer}>
+        <Text
+          style={[
+            styles.coverage,
+            { color: COVERAGE_COLORS[offer.coverageStatus] },
           ]}
-          accessibilityRole="button"
-          accessibilityLabel={saved ? "Remove from saved offers" : "Save offer"}
         >
-          <Text style={[styles.saveBtnText, saved && styles.saveBtnTextActive]}>
-            {saved ? "Saved ✓" : "Save offer"}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
+          {COVERAGE_LABELS[offer.coverageStatus]}
+        </Text>
+        <Text style={styles.expiry}>{offer.expiresLabel}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -109,19 +90,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+    padding: 16,
     marginBottom: 12,
-    overflow: "hidden",
   },
   cardHighlight: {
     borderColor: "#2563eb",
     borderWidth: 2,
-  },
-  cardSaved: {
-    borderColor: "#93c5fd",
-  },
-  body: {
-    padding: 16,
-    paddingBottom: 8,
   },
   pressed: { opacity: 0.92 },
   topRow: {
@@ -131,6 +105,13 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
+  badges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "flex-end",
+    maxWidth: "45%",
+  },
   title: {
     flex: 1,
     fontSize: 16,
@@ -138,8 +119,19 @@ const styles = StyleSheet.create({
     color: "#111827",
     lineHeight: 22,
   },
-  highlight: {
+  savedPill: {
     backgroundColor: "#eff6ff",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  savedPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#2563eb",
+  },
+  highlight: {
+    backgroundColor: "#f3f4f6",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -147,7 +139,7 @@ const styles = StyleSheet.create({
   highlightText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#2563eb",
+    color: "#4b5563",
   },
   partner: {
     fontSize: 14,
@@ -189,31 +181,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#dc2626",
-  },
-  note: {
-    fontSize: 13,
-    color: "#6b7280",
-    lineHeight: 18,
-  },
-  saveBtn: {
-    margin: 12,
-    marginTop: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#2563eb",
-    alignItems: "center",
-  },
-  saveBtnActive: {
-    backgroundColor: "#eff6ff",
-  },
-  saveBtnPressed: { opacity: 0.9 },
-  saveBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2563eb",
-  },
-  saveBtnTextActive: {
-    color: "#1d4ed8",
   },
 });

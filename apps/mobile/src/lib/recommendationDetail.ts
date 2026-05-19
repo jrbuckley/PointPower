@@ -371,47 +371,11 @@ function buildOffers(
 
 function buildActions(rec: Recommendation, programLabel: string): RecommendationAction[] {
   if (rec.redemptionType === "transfer") {
-    return [
-      {
-        id: "start-transfer",
-        label: "Start partner transfer",
-        description: `Move points from ${programLabel} to a partner program.`,
-        kind: "primary",
-        actionType: "start_transfer",
-      },
-      {
-        id: "check-availability",
-        label: "Check award availability",
-        description: "Search partner sites before you transfer.",
-        kind: "secondary",
-        actionType: "open_portal",
-      },
-      {
-        id: "view-saved",
-        label: "View saved offers",
-        description: "See everything you’ve bookmarked in one place.",
-        kind: "secondary",
-        actionType: "view_saved_offers",
-      },
-      {
-        id: "reminder",
-        label: "Remind me before expiry",
-        description: "Get a nudge when time-limited deals are ending.",
-        kind: "secondary",
-        actionType: "set_reminder",
-      },
-    ];
+    return [];
   }
 
   if (rec.redemptionType === "portal") {
     return [
-      {
-        id: "open-portal",
-        label: "Open travel portal",
-        description: `Book on ${programLabel} Travel with points at checkout.`,
-        kind: "primary",
-        actionType: "open_portal",
-      },
       {
         id: "compare-cash",
         label: "Compare cash price",
@@ -419,24 +383,10 @@ function buildActions(rec: Recommendation, programLabel: string): Recommendation
         kind: "secondary",
         actionType: "compare_alternatives",
       },
-      {
-        id: "view-saved",
-        label: "View saved offers",
-        description: "See everything you’ve bookmarked in one place.",
-        kind: "secondary",
-        actionType: "view_saved_offers",
-      },
     ];
   }
 
   return [
-    {
-      id: "redeem-credit",
-      label: "Redeem statement credit",
-      description: "Apply points toward your balance in the issuer app.",
-      kind: "primary",
-      actionType: "statement_credit",
-    },
     {
       id: "compare-travel",
       label: "Compare travel value",
@@ -444,14 +394,42 @@ function buildActions(rec: Recommendation, programLabel: string): Recommendation
       kind: "secondary",
       actionType: "compare_alternatives",
     },
-    {
-      id: "view-saved",
-      label: "View saved offers",
-      description: "See everything you’ve bookmarked in one place.",
-      kind: "secondary",
-      actionType: "view_saved_offers",
-    },
   ];
+}
+
+/** Primary CTA shown on offer tap — all redemption types initiate from a specific offer. */
+export function getOfferPrimaryAction(
+  detail: RecommendationDetail,
+): RecommendationAction {
+  const programLabel = detail.offers[0]?.programLabel ?? "your program";
+
+  if (detail.redemptionType === "transfer") {
+    return {
+      id: "start-transfer",
+      label: "Start partner transfer",
+      description: `Move points from ${programLabel} to a partner program.`,
+      kind: "primary",
+      actionType: "start_transfer",
+    };
+  }
+
+  if (detail.redemptionType === "portal") {
+    return {
+      id: "open-portal",
+      label: "Open travel portal",
+      description: `Book on ${programLabel} Travel with points at checkout.`,
+      kind: "primary",
+      actionType: "open_portal",
+    };
+  }
+
+  return {
+    id: "redeem-credit",
+    label: "Redeem statement credit",
+    description: "Apply points toward your balance in the issuer app.",
+    kind: "primary",
+    actionType: "statement_credit",
+  };
 }
 
 function buildNextSteps(
