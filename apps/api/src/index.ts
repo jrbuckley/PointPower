@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { linkedAccountsRoutes } from "./routes/linked-accounts.js";
 import { profileRoutes } from "./routes/profile.js";
+import { savedOffersRoutes } from "./routes/saved-offers.js";
 import { programsRoutes } from "./routes/programs.js";
 import { rewardAccountsRoutes } from "./routes/reward-accounts.js";
 import { rewardProgramsRoutes } from "./routes/reward-programs.js";
@@ -22,6 +23,7 @@ await app.register(programsRoutes, { prefix: "/api/v1" });
 await app.register(rewardProgramsRoutes, { prefix: "/api/v1" });
 await app.register(rewardAccountsRoutes, { prefix: "/api/v1" });
 await app.register(profileRoutes, { prefix: "/api/v1" });
+await app.register(savedOffersRoutes, { prefix: "/api/v1" });
 await app.register(linkedAccountsRoutes, { prefix: "/api/v1" });
 
 try {

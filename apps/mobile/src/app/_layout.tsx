@@ -50,6 +50,14 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="saved-offers"
+            options={{
+              title: "Saved offers",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
+          />
+          <Stack.Screen
             name="settings"
             options={{
               title: "Settings",

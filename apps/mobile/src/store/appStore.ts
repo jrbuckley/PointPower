@@ -8,6 +8,7 @@ import type {
   RewardBalance,
 } from "../types/models";
 import { useAuthStore } from "./authStore";
+import { useSavedOffersStore } from "./savedOffersStore";
 
 type AppState = {
   hasCompletedOnboarding: boolean;
@@ -49,6 +50,7 @@ export const useAppStore = create<AppState>()(
       resetOnboarding: () => set({ hasCompletedOnboarding: false }),
       clearAllData: async () => {
         await useAuthStore.getState().clearMockRegistration();
+        useSavedOffersStore.getState().clearSavedOffers();
         set({
           hasCompletedOnboarding: false,
           goalPreference: "KEEP_IT_SIMPLE",

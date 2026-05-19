@@ -16,57 +16,90 @@ const COVERAGE_COLORS: Record<GoalCoverageStatus, string> = {
 
 type Props = {
   offer: RedemptionOffer;
+  saved?: boolean;
+  highlighted?: boolean;
   onPress?: () => void;
+  onToggleSave?: () => void;
 };
 
-export function OfferCard({ offer, onPress }: Props) {
+export function OfferCard({
+  offer,
+  saved = false,
+  highlighted = false,
+  onPress,
+  onToggleSave,
+}: Props) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.card,
-        pressed && onPress && styles.pressed,
+        highlighted && styles.cardHighlight,
+        saved && styles.cardSaved,
       ]}
-      accessibilityRole={onPress ? "button" : "text"}
     >
-      <View style={styles.topRow}>
-        <Text style={styles.title}>{offer.title}</Text>
-        {offer.highlight ? (
-          <View style={styles.highlight}>
-            <Text style={styles.highlightText}>{offer.highlight}</Text>
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        style={({ pressed }) => [styles.body, pressed && onPress && styles.pressed]}
+        accessibilityRole={onPress ? "button" : "text"}
+      >
+        <View style={styles.topRow}>
+          <Text style={styles.title}>{offer.title}</Text>
+          {offer.highlight ? (
+            <View style={styles.highlight}>
+              <Text style={styles.highlightText}>{offer.highlight}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.partner}>{offer.partner}</Text>
+        <Text style={styles.via}>via {offer.programLabel}</Text>
+
+        <View style={styles.metrics}>
+          <View>
+            <Text style={styles.metricLabel}>Points needed</Text>
+            <Text style={styles.metricValue}>
+              {formatPoints(offer.pointsRequired)}
+            </Text>
           </View>
-        ) : null}
-      </View>
-      <Text style={styles.partner}>{offer.partner}</Text>
-      <Text style={styles.via}>via {offer.programLabel}</Text>
-
-      <View style={styles.metrics}>
-        <View>
-          <Text style={styles.metricLabel}>Points needed</Text>
-          <Text style={styles.metricValue}>{formatPoints(offer.pointsRequired)}</Text>
+          <View>
+            <Text style={styles.metricLabel}>Est. cash value</Text>
+            <Text style={styles.metricValue}>
+              {formatDollars(offer.estimatedCashValue)}
+            </Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.metricLabel}>Est. cash value</Text>
-          <Text style={styles.metricValue}>
-            {formatDollars(offer.estimatedCashValue)}
+
+        <View style={styles.footer}>
+          <Text
+            style={[
+              styles.coverage,
+              { color: COVERAGE_COLORS[offer.coverageStatus] },
+            ]}
+          >
+            {COVERAGE_LABELS[offer.coverageStatus]}
           </Text>
+          <Text style={styles.expiry}>{offer.expiresLabel}</Text>
         </View>
-      </View>
+        <Text style={styles.note}>{offer.availabilityNote}</Text>
+      </Pressable>
 
-      <View style={styles.footer}>
-        <Text
-          style={[
-            styles.coverage,
-            { color: COVERAGE_COLORS[offer.coverageStatus] },
+      {onToggleSave ? (
+        <Pressable
+          onPress={onToggleSave}
+          style={({ pressed }) => [
+            styles.saveBtn,
+            saved && styles.saveBtnActive,
+            pressed && styles.saveBtnPressed,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? "Remove from saved offers" : "Save offer"}
         >
-          {COVERAGE_LABELS[offer.coverageStatus]}
-        </Text>
-        <Text style={styles.expiry}>{offer.expiresLabel}</Text>
-      </View>
-      <Text style={styles.note}>{offer.availabilityNote}</Text>
-    </Pressable>
+          <Text style={[styles.saveBtnText, saved && styles.saveBtnTextActive]}>
+            {saved ? "Saved ✓" : "Save offer"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -76,8 +109,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    padding: 16,
     marginBottom: 12,
+    overflow: "hidden",
+  },
+  cardHighlight: {
+    borderColor: "#2563eb",
+    borderWidth: 2,
+  },
+  cardSaved: {
+    borderColor: "#93c5fd",
+  },
+  body: {
+    padding: 16,
+    paddingBottom: 8,
   },
   pressed: { opacity: 0.92 },
   topRow: {
@@ -150,5 +194,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     lineHeight: 18,
+  },
+  saveBtn: {
+    margin: 12,
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    alignItems: "center",
+  },
+  saveBtnActive: {
+    backgroundColor: "#eff6ff",
+  },
+  saveBtnPressed: { opacity: 0.9 },
+  saveBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2563eb",
+  },
+  saveBtnTextActive: {
+    color: "#1d4ed8",
   },
 });

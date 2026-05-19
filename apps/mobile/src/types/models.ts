@@ -86,6 +86,7 @@ export type RecommendationAction = {
     | "start_transfer"
     | "statement_credit"
     | "save_offer"
+    | "view_saved_offers"
     | "set_reminder"
     | "compare_alternatives";
 };

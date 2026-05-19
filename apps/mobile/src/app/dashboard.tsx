@@ -16,6 +16,8 @@ import { isApiConfigured } from "../lib/apiClient";
 import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
+import { useSavedOffersHydration } from "../hooks/useSavedOffers";
+import { useSavedOffersStore } from "../store/savedOffersStore";
 import { isDashboardEmpty } from "../lib/rewardTotals";
 import { useAppStore } from "../store/appStore";
 import { formatDollars } from "../utils/format";
@@ -25,6 +27,8 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
   const { isLoading: profileLoading } = useProfileFromApi(true);
+  useSavedOffersHydration(true);
+  const savedCount = useSavedOffersStore((s) => s.refs.length);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const showEmpty = isDashboardEmpty(rewardBalances);
   const { data, isPending, isFetching, isRefetching, refetch } =
@@ -41,6 +45,16 @@ export default function DashboardScreen() {
       <View style={styles.topBar}>
         <Text style={styles.brand}>Points value</Text>
         <View style={styles.topLinks}>
+          <Pressable
+            onPress={() => router.push("/saved-offers")}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Saved offers"
+          >
+            <Text style={styles.link}>
+              Saved{savedCount > 0 ? ` (${savedCount})` : ""}
+            </Text>
+          </Pressable>
           <Pressable
             onPress={() => router.push("/goal-preferences")}
             hitSlop={8}

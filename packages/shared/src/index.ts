@@ -217,3 +217,36 @@ export const updateUserProfileInputSchema = z
   });
 
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileInputSchema>;
+
+export const recommendationIdSchema = z.enum([
+  "BEST_VALUE",
+  "EASIEST",
+  "BEST_FOR_TRAVEL",
+]);
+
+export type RecommendationId = z.infer<typeof recommendationIdSchema>;
+
+export const savedOfferRefSchema = z.object({
+  id: z.string().uuid(),
+  offerKey: z.string().min(1).max(128),
+  recommendationId: recommendationIdSchema,
+  savedAt: z.string(),
+  remindAt: z.string().nullable().optional(),
+});
+
+export type SavedOfferRef = z.infer<typeof savedOfferRefSchema>;
+
+export const createSavedOfferInputSchema = z.object({
+  offerKey: z.string().min(1).max(128),
+  recommendationId: recommendationIdSchema,
+});
+
+export type CreateSavedOfferInput = z.infer<typeof createSavedOfferInputSchema>;
+
+export const savedOfferStatusSchema = z.enum([
+  "active",
+  "expired",
+  "unavailable",
+]);
+
+export type SavedOfferStatus = z.infer<typeof savedOfferStatusSchema>;

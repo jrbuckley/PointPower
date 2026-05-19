@@ -13,6 +13,7 @@ import type {
   RewardProgramId,
 } from "../types/models";
 import type { GoalContext } from "./goalContext";
+import { generateRecommendations } from "./recommendations";
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -386,11 +387,11 @@ function buildActions(rec: Recommendation, programLabel: string): Recommendation
         actionType: "open_portal",
       },
       {
-        id: "save-offer",
-        label: "Save this offer",
-        description: "Keep it on your dashboard to revisit.",
+        id: "view-saved",
+        label: "View saved offers",
+        description: "See everything you’ve bookmarked in one place.",
         kind: "secondary",
-        actionType: "save_offer",
+        actionType: "view_saved_offers",
       },
       {
         id: "reminder",
@@ -419,11 +420,11 @@ function buildActions(rec: Recommendation, programLabel: string): Recommendation
         actionType: "compare_alternatives",
       },
       {
-        id: "save-offer",
-        label: "Save this offer",
-        description: "Track this path while you decide.",
+        id: "view-saved",
+        label: "View saved offers",
+        description: "See everything you’ve bookmarked in one place.",
         kind: "secondary",
-        actionType: "save_offer",
+        actionType: "view_saved_offers",
       },
     ];
   }
@@ -444,11 +445,11 @@ function buildActions(rec: Recommendation, programLabel: string): Recommendation
       actionType: "compare_alternatives",
     },
     {
-      id: "save-offer",
-      label: "Save this offer",
-      description: "Come back when you’re ready to redeem.",
+      id: "view-saved",
+      label: "View saved offers",
+      description: "See everything you’ve bookmarked in one place.",
       kind: "secondary",
-      actionType: "save_offer",
+      actionType: "view_saved_offers",
     },
   ];
 }
@@ -561,6 +562,69 @@ const detailCopy: Record<
     ],
   },
 };
+
+/** Live offers for a recommendation path (mock catalog; resolved at read time). */
+export function listOffersForRecommendation(
+  recommendationId: string,
+  rewardBalances: RewardBalance[],
+  ctx: GoalContext,
+): RedemptionOffer[] {
+  const totalPoints = Math.round(
+    rewardBalances.reduce((s, b) => s + Math.max(0, b.amount), 0),
+  );
+  const program = primaryProgram(rewardBalances);
+  const rec = generateRecommendations(rewardBalances, ctx).find(
+    (r) => r.id === recommendationId,
+  );
+  if (!rec) return [];
+  return buildOffers(rec, totalPoints, program, ctx);
+}
+
+export type SavedOfferEntry = {
+  id: string;
+  offerKey: string;
+  recommendationId: string;
+  savedAt: string;
+  status: "active" | "expired" | "unavailable";
+  recommendationTitle: string;
+  offer: RedemptionOffer | null;
+};
+
+export function resolveSavedOffers(
+  refs: { id: string; offerKey: string; recommendationId: string; savedAt: string }[],
+  rewardBalances: RewardBalance[],
+  ctx: GoalContext,
+): SavedOfferEntry[] {
+  const now = Date.now();
+  const recs = generateRecommendations(rewardBalances, ctx);
+  const recById = new Map(recs.map((r) => [r.id, r]));
+
+  return refs.map((ref) => {
+    const rec = recById.get(ref.recommendationId);
+    const offers = listOffersForRecommendation(
+      ref.recommendationId,
+      rewardBalances,
+      ctx,
+    );
+    const offer = offers.find((o) => o.id === ref.offerKey) ?? null;
+
+    let status: SavedOfferEntry["status"] = "unavailable";
+    if (offer) {
+      status =
+        new Date(offer.expiresAt).getTime() < now ? "expired" : "active";
+    }
+
+    return {
+      id: ref.id,
+      offerKey: ref.offerKey,
+      recommendationId: ref.recommendationId,
+      savedAt: ref.savedAt,
+      status,
+      recommendationTitle: rec?.title ?? "Redemption path",
+      offer,
+    };
+  });
+}
 
 export function buildRecommendationDetail(
   rec: Recommendation,

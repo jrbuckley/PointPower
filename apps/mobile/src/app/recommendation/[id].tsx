@@ -1,4 +1,6 @@
+import type { RecommendationId } from "@points-exchange/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { DifficultyBadge } from "../../components/DifficultyBadge";
 import { GoalFitCard } from "../../components/recommendation/GoalFitCard";
@@ -6,15 +8,43 @@ import { OfferCard } from "../../components/recommendation/OfferCard";
 import { LoadingSpinner } from "../../components/loading/LoadingSpinner";
 import { RecommendationDetailSkeleton } from "../../components/loading/RecommendationDetailSkeleton";
 import { useRecommendationDetailQuery } from "../../hooks/useDashboardData";
+import { refreshDashboardData } from "../../lib/invalidateDashboard";
 import { runRecommendationAction } from "../../lib/recommendationActions";
+import { toggleSaveOffer } from "../../lib/savedOffersService";
+import { useSavedOffersStore } from "../../store/savedOffersStore";
 import type { RedemptionOffer } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
 
 export default function RecommendationDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, highlightOffer } = useLocalSearchParams<{
+    id: string;
+    highlightOffer?: string;
+  }>();
   const router = useRouter();
+  const savedRefs = useSavedOffersStore((s) => s.refs);
+  const isOfferSaved = useSavedOffersStore((s) => s.isOfferSaved);
+  const [savingOfferKey, setSavingOfferKey] = useState<string | null>(null);
   const { data, isPending, isFetching, isError } = useRecommendationDetailQuery(id);
   const showSkeleton = !data && (isPending || isFetching);
+
+  async function onToggleSaveOffer(offer: RedemptionOffer) {
+    if (!id) return;
+    setSavingOfferKey(offer.id);
+    try {
+      const result = await toggleSaveOffer(
+        offer.id,
+        id as RecommendationId,
+      );
+      refreshDashboardData();
+      if (result.saved) {
+        Alert.alert("Offer saved", "Find it anytime under Saved on your dashboard.");
+      }
+    } catch {
+      Alert.alert("Could not update", "Check your connection and try again.");
+    } finally {
+      setSavingOfferKey(null);
+    }
+  }
 
   function onOfferPress(offer: RedemptionOffer) {
     Alert.alert(
@@ -23,10 +53,20 @@ export default function RecommendationDetailScreen() {
       [
         { text: "Not now", style: "cancel" },
         {
+          text: isOfferSaved(offer.id) ? "View saved" : "Save offer",
+          onPress: () => {
+            if (isOfferSaved(offer.id)) {
+              router.push("/saved-offers");
+            } else {
+              void onToggleSaveOffer(offer);
+            }
+          },
+        },
+        {
           text: "Next steps",
           onPress: () => {
             const primary = data?.actions.find((a) => a.kind === "primary");
-            if (primary) runRecommendationAction(primary);
+            if (primary) runRecommendationAction(primary, router);
           },
         },
       ],
@@ -86,16 +126,36 @@ export default function RecommendationDetailScreen() {
       <Text style={styles.sectionHint}>
         Specific paths based on your balances and goals. Tap an offer for details.
       </Text>
+      {savedRefs.length > 0 ? (
+        <Pressable
+          onPress={() => router.push("/saved-offers")}
+          style={styles.savedLink}
+        >
+          <Text style={styles.savedLinkText}>
+            {savedRefs.length} saved offer{savedRefs.length === 1 ? "" : "s"} →
+          </Text>
+        </Pressable>
+      ) : null}
       {data.offers.map((offer) => (
-        <OfferCard key={offer.id} offer={offer} onPress={() => onOfferPress(offer)} />
+        <OfferCard
+          key={offer.id}
+          offer={offer}
+          saved={isOfferSaved(offer.id)}
+          highlighted={highlightOffer === offer.id}
+          onPress={() => onOfferPress(offer)}
+          onToggleSave={() => void onToggleSaveOffer(offer)}
+        />
       ))}
+      {savingOfferKey ? (
+        <Text style={styles.savingHint}>Updating saved offers…</Text>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Take action</Text>
       <View style={styles.actions}>
         {data.actions.map((action) => (
           <Pressable
             key={action.id}
-            onPress={() => runRecommendationAction(action)}
+            onPress={() => runRecommendationAction(action, router)}
             style={({ pressed }) => [
               action.kind === "primary" ? styles.actionPrimary : styles.actionSecondary,
               pressed && styles.actionPressed,
@@ -222,6 +282,20 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 14,
     lineHeight: 20,
+  },
+  savedLink: {
+    marginBottom: 10,
+  },
+  savedLinkText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2563eb",
+  },
+  savingHint: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 8,
   },
   actions: {
     gap: 10,

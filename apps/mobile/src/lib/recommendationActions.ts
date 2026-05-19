@@ -1,8 +1,9 @@
 import { Alert } from "react-native";
+import type { Router } from "expo-router";
 import type { RecommendationAction } from "../types/models";
 
 const ACTION_MESSAGES: Record<
-  RecommendationAction["actionType"],
+  Exclude<RecommendationAction["actionType"], "view_saved_offers">,
   { title: string; message: string }
 > = {
   open_portal: {
@@ -21,9 +22,8 @@ const ACTION_MESSAGES: Record<
       "In a future update this will open your card app on the redeem-points screen.",
   },
   save_offer: {
-    title: "Offer saved",
-    message:
-      "We’ll add a saved-offers list soon. For now, bookmark this screen or note the partner and points required.",
+    title: "Save offer",
+    message: "Use the Save offer button on a specific offer card below.",
   },
   set_reminder: {
     title: "Reminder set",
@@ -37,7 +37,15 @@ const ACTION_MESSAGES: Record<
   },
 };
 
-export function runRecommendationAction(action: RecommendationAction): void {
+export function runRecommendationAction(
+  action: RecommendationAction,
+  router?: Router,
+): void {
+  if (action.actionType === "view_saved_offers") {
+    router?.push("/saved-offers");
+    return;
+  }
+
   const copy = ACTION_MESSAGES[action.actionType];
   Alert.alert(copy.title, `${action.description}\n\n${copy.message}`);
 }

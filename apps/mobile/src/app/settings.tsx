@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { refreshDashboardData } from "../lib/invalidateDashboard";
 import { useAppStore } from "../store/appStore";
 import { useAuthStore } from "../store/authStore";
+import { useSavedOffersStore } from "../store/savedOffersStore";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function SettingsScreen() {
         style: "destructive",
         onPress: async () => {
           await signOut();
+          useSavedOffersStore.getState().clearSavedOffers();
           refreshDashboardData();
           router.replace("/login");
         },
@@ -75,6 +77,20 @@ export default function SettingsScreen() {
           simple tradeoffs—not sell you new cards.
         </Text>
         <Text style={styles.meta}>Version 1.0 (preview)</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Redemptions</Text>
+        <Pressable
+          onPress={() => router.push("/saved-offers")}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          accessibilityRole="button"
+        >
+          <Text style={styles.rowTitle}>Saved offers</Text>
+          <Text style={styles.rowSub}>
+            Bookmarked paths that update with your points and goals
+          </Text>
+        </Pressable>
       </View>
 
       <View style={styles.section}>
