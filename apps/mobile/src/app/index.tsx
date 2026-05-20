@@ -15,7 +15,7 @@ export default function Index() {
   if (!hydrated) {
     return (
       <View style={styles.boot}>
-        <Text style={styles.brand}>Points value</Text>
+        <Text style={styles.brand}>PointPower</Text>
         <LoadingSpinner message="Getting things ready…" />
       </View>
     );

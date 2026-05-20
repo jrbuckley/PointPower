@@ -49,7 +49,7 @@ export default function DashboardScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.topBar}>
-        <Text style={styles.brand}>Points value</Text>
+        <Text style={styles.brand}>PointPower</Text>
         <View style={styles.topLinks}>
           <Pressable
             onPress={() => router.push("/rewards-accounts")}

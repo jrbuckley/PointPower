@@ -92,7 +92,7 @@ export default function DeleteAccountScreen() {
           <Text style={styles.warningTitle}>Before you go</Text>
           <Text style={styles.warningBody}>
             Deleting your account permanently removes your profile, reward balances,
-            and goals. You will need to create a new account to use Points value again.
+            and goals. You will need to create a new account to use PointPower again.
           </Text>
         </View>
 

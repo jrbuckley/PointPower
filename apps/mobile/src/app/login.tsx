@@ -48,7 +48,7 @@ export default function LoginScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
     >
       <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
-        <Text style={styles.brand}>Points value</Text>
+        <Text style={styles.brand}>PointPower</Text>
         <Text style={styles.lead}>Sign in to continue.</Text>
 
         <View style={styles.field}>
