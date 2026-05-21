@@ -54,7 +54,7 @@ export function OfferCard({
         </View>
       </View>
       <Text style={styles.partner}>{offer.partner}</Text>
-      <Text style={styles.via}>via {offer.programLabel}</Text>
+      <Text style={styles.via}>Redeem from {offer.programLabel}</Text>
 
       <View style={styles.metrics}>
         <View>

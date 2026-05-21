@@ -19,6 +19,9 @@ import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
 import { useProfileFromApi } from "../hooks/useProfileFromApi";
 import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
 import { useSavedOffersHydration } from "../hooks/useSavedOffers";
+import { useValuationCatalog } from "../hooks/useValuationCatalog";
+import { summarizeBalances } from "@points-exchange/recommendations";
+import { balancesToInput } from "../lib/balanceInput";
 import { isDashboardEmpty } from "../lib/rewardTotals";
 import { useAppStore } from "../store/appStore";
 import { formatDollars } from "../utils/format";
@@ -30,6 +33,7 @@ export default function DashboardScreen() {
   const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
   const { isLoading: profileLoading } = useProfileFromApi(true);
   useSavedOffersHydration(true);
+  useValuationCatalog(true);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const showEmpty = isDashboardEmpty(rewardBalances);
   const { data, isPending, isFetching, isRefetching, refetch } =
@@ -40,6 +44,7 @@ export default function DashboardScreen() {
   const showSkeleton =
     !showEmpty && !data && (isPending || isFetching || apiHydrating);
   const showContent = !showEmpty && data;
+  const pointsSummary = summarizeBalances(balancesToInput(rewardBalances));
 
   function navigate(path: "/saved-offers" | "/goal-preferences" | "/settings") {
     setMenuOpen(false);
@@ -128,6 +133,8 @@ export default function DashboardScreen() {
                 totalPoints={data.totalPoints}
                 valueMin={data.valueRangeMin}
                 valueMax={data.valueRangeMax}
+                programCount={pointsSummary.programCount}
+                pointsBreakdown={pointsSummary.pointsBreakdown}
               />
 
               <View style={styles.insight}>

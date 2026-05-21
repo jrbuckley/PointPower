@@ -12,9 +12,25 @@ import { refreshDashboardData } from "../../lib/invalidateDashboard";
 import { getOfferPrimaryAction } from "../../lib/recommendationDetail";
 import { runRecommendationAction } from "../../lib/recommendationActions";
 import { toggleSaveOffer } from "../../lib/savedOffersService";
+import { useAppStore } from "../../store/appStore";
 import { useSavedOffersStore } from "../../store/savedOffersStore";
 import type { RedemptionOffer } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
+
+function groupOffersByProgram(
+  offers: RedemptionOffer[],
+): [string, RedemptionOffer[]][] {
+  const order: string[] = [];
+  const map = new Map<string, RedemptionOffer[]>();
+  for (const offer of offers) {
+    if (!map.has(offer.programLabel)) {
+      order.push(offer.programLabel);
+      map.set(offer.programLabel, []);
+    }
+    map.get(offer.programLabel)!.push(offer);
+  }
+  return order.map((label) => [label, map.get(label)!]);
+}
 
 export default function RecommendationDetailScreen() {
   const { id, highlightOffer } = useLocalSearchParams<{
@@ -22,6 +38,7 @@ export default function RecommendationDetailScreen() {
     highlightOffer?: string;
   }>();
   const router = useRouter();
+  const rewardBalances = useAppStore((s) => s.rewardBalances);
   const isOfferSaved = useSavedOffersStore((s) => s.isOfferSaved);
   const { data, isPending, isFetching, isError } = useRecommendationDetailQuery(id);
   const showSkeleton = !data && (isPending || isFetching);
@@ -55,7 +72,7 @@ export default function RecommendationDetailScreen() {
   function onOfferPress(offer: RedemptionOffer) {
     if (!data) return;
 
-    const primary = getOfferPrimaryAction(data);
+    const primary = getOfferPrimaryAction(data, offer, rewardBalances);
     const buttons: {
       text: string;
       style?: "cancel" | "default" | "destructive";
@@ -178,15 +195,28 @@ export default function RecommendationDetailScreen() {
       ) : null}
 
       <Text style={styles.sectionTitle}>Offers you can use</Text>
-      <Text style={styles.sectionHint}>Tap an offer for details and save.</Text>
-      {data.offers.map((offer) => (
-        <OfferCard
-          key={offer.id}
-          offer={offer}
-          saved={isOfferSaved(offer.id)}
-          highlighted={highlightOffer === offer.id}
-          onPress={() => onOfferPress(offer)}
-        />
+      <Text style={styles.sectionHint}>
+        {data.goalFit.programCount > 1
+          ? "Each section uses points from that program only—tap an offer for details."
+          : "Tap an offer for details and save."}
+      </Text>
+      {groupOffersByProgram(data.offers).map(([programLabel, programOffers]) => (
+        <View key={programLabel} style={styles.offerGroup}>
+          {data.goalFit.programCount > 1 ? (
+            <Text style={styles.offerGroupTitle}>{programLabel}</Text>
+          ) : null}
+          {programOffers.map((offer) => (
+            <OfferCard
+              key={offer.id}
+              offer={offer}
+              saved={isOfferSaved(offer.id)}
+              highlighted={
+                highlightOffer === offer.id || highlightOffer === offer.offerKey
+              }
+              onPress={() => onOfferPress(offer)}
+            />
+          ))}
+        </View>
       ))}
 
       <CollapsibleSection
@@ -274,6 +304,16 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 14,
     lineHeight: 20,
+  },
+  offerGroup: {
+    marginBottom: 8,
+  },
+  offerGroupTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#374151",
+    marginBottom: 10,
+    marginTop: 4,
   },
   stepRow: {
     flexDirection: "row",

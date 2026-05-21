@@ -9,7 +9,8 @@
     "dev:api": "npm run dev --workspace=api",
     "dev:mobile": "npm run start --workspace=mobile",
     "build:shared": "npm run build --workspace=@points-exchange/shared",
-    "postinstall": "npm run build:shared"
+    "build:recommendations": "npm run build --workspace=@points-exchange/recommendations",
+    "postinstall": "npm run build:shared && npm run build:recommendations"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

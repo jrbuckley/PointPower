@@ -1,23 +1,22 @@
-export type RewardProgramId =
-  | "CHASE_UR"
-  | "AMEX_MR"
-  | "CAPITAL_ONE_MILES"
-  | "CITI_TY"
-  | "CASHBACK";
+import type {
+  CustomGoalCode,
+  GoalPreference,
+  RecommendationId,
+  RedemptionMethodCode,
+  ValuationCatalog,
+} from "@points-exchange/shared";
 
-export type RewardBalance = {
-  programId: RewardProgramId;
+export type { ValuationCatalog };
+
+export type RewardBalanceInput = {
+  programCode: string;
   amount: number;
 };
 
-import type { RecommendationId as SharedRecommendationId } from "@points-exchange/shared";
-
-export type {
-  CustomGoalCode,
-  GoalPreference,
-} from "@points-exchange/shared";
-
-export type RecommendationId = SharedRecommendationId;
+export type GoalContext = {
+  goalPreference: GoalPreference;
+  customGoalCode: CustomGoalCode | null;
+};
 
 export type RecommendationLabel =
   | "BEST_VALUE"
@@ -33,23 +32,7 @@ export type Recommendation = {
   pointsUsed: number;
   cpp: number;
   difficulty: "easy" | "medium" | "advanced";
-  redemptionType: "cashback" | "portal" | "transfer";
-};
-
-export type ValueComparisonRow = {
-  id: "cashback" | "portal" | "transfer";
-  label: string;
-  estimatedDollars: number;
-  subtitle: string;
-};
-
-export type DashboardSummary = {
-  totalPoints: number;
-  valueRangeMin: number;
-  valueRangeMax: number;
-  recommendations: Recommendation[];
-  comparison: ValueComparisonRow[];
-  insightMessage: string;
+  redemptionType: RedemptionMethodCode;
 };
 
 export type GoalCoverageStatus = "full" | "partial" | "stretch";
@@ -64,13 +47,17 @@ export type GoalFitSummary = {
   percentCovered: number;
   pointsShort: number;
   cashGap: number;
+  /** Number of programs with a balance > 0. */
   programCount: number;
+  /** Human-readable breakdown, e.g. "Chase UR 50k · Amex MR 30k". */
   pointsBreakdown: string;
   primaryProgramLabel: string;
 };
 
 export type RedemptionOffer = {
+  /** Unique id, typically `offerKey@programCode`. */
   id: string;
+  /** Base catalog key for saved-offer references. */
   offerKey: string;
   programCode: string;
   title: string;
@@ -115,4 +102,36 @@ export type RecommendationDetail = Recommendation & {
   offers: RedemptionOffer[];
   nextSteps: RecommendationStep[];
   actions: RecommendationAction[];
+};
+
+export type ValueComparisonRow = {
+  id: RedemptionMethodCode;
+  label: string;
+  estimatedDollars: number;
+  subtitle: string;
+};
+
+export type DashboardSummary = {
+  totalPoints: number;
+  valueRangeMin: number;
+  valueRangeMax: number;
+  recommendations: Recommendation[];
+  comparison: ValueComparisonRow[];
+  insightMessage: string;
+};
+
+export type SavedOfferEntry = {
+  id: string;
+  offerKey: string;
+  recommendationId: string;
+  savedAt: string;
+  status: "active" | "expired" | "unavailable";
+  recommendationTitle: string;
+  offer: RedemptionOffer | null;
+};
+
+export type ProgramInfo = {
+  programCode: string;
+  label: string;
+  amount: number;
 };

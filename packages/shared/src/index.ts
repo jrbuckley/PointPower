@@ -250,3 +250,16 @@ export const savedOfferStatusSchema = z.enum([
 ]);
 
 export type SavedOfferStatus = z.infer<typeof savedOfferStatusSchema>;
+
+export {
+  redemptionMethodCodeSchema,
+  valuationRuleSchema,
+  redemptionOfferTemplateSchema,
+  goalRedemptionTargetSchema,
+  valuationCatalogSchema,
+  type RedemptionMethodCode,
+  type ValuationRule,
+  type RedemptionOfferTemplate,
+  type GoalRedemptionTarget,
+  type ValuationCatalog,
+} from "./valuations.js";

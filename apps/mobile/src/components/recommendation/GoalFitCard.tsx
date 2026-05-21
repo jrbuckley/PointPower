@@ -17,9 +17,13 @@ export function GoalFitCard({ goalFit }: Props) {
   const s = STATUS_STYLES[goalFit.status];
 
   const summary =
-    goalFit.status === "full"
-      ? `${goalFit.percentCovered}% of your goal`
-      : `${goalFit.percentCovered}% covered · ${formatPoints(goalFit.pointsShort)} pts to go`;
+    goalFit.programCount > 1
+      ? goalFit.status === "full"
+        ? `${goalFit.percentCovered}% combined · ${goalFit.pointsBreakdown}`
+        : `${goalFit.percentCovered}% combined · ${formatPoints(goalFit.pointsShort)} pts to go`
+      : goalFit.status === "full"
+        ? `${goalFit.percentCovered}% of your goal`
+        : `${goalFit.percentCovered}% covered · ${formatPoints(goalFit.pointsShort)} pts to go`;
 
   return (
     <CollapsibleCard
@@ -36,8 +40,9 @@ export function GoalFitCard({ goalFit }: Props) {
     >
       <Text style={styles.detail}>{goalFit.detail}</Text>
       <Text style={styles.meta}>
-        {formatPoints(goalFit.pointsYouHave)} pts of{" "}
+        {formatPoints(goalFit.pointsYouHave)} pts combined of{" "}
         {formatPoints(goalFit.pointsForFullCoverage)} typical for this goal
+        {goalFit.programCount > 1 ? " · see offers per program below" : ""}
       </Text>
       {goalFit.status !== "full" ? (
         <Text style={styles.gap}>
