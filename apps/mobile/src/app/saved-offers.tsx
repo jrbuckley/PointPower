@@ -62,7 +62,7 @@ export default function SavedOffersScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No saved offers yet</Text>
           <Text style={styles.emptyBody}>
-            Open a recommendation, pick an offer, and tap Save—or use the save
+            Open a recommendation, pick an offer, and tap Save, or use the save
             action on the detail screen.
           </Text>
           <Pressable

@@ -6,7 +6,6 @@ type Props = {
   valueMin: number;
   valueMax: number;
   programCount?: number;
-  pointsBreakdown?: string;
 };
 
 export function ValueRangeSummaryCard({
@@ -14,7 +13,6 @@ export function ValueRangeSummaryCard({
   valueMin,
   valueMax,
   programCount = 1,
-  pointsBreakdown,
 }: Props) {
   return (
     <View style={styles.card}>
@@ -23,16 +21,13 @@ export function ValueRangeSummaryCard({
         <Text style={styles.emphasis}>{formatPoints(totalPoints)}</Text> points
         {programCount > 1 ? " across your programs" : ""}
       </Text>
-      {programCount > 1 && pointsBreakdown ? (
-        <Text style={styles.breakdown}>{pointsBreakdown}</Text>
-      ) : null}
       <Text style={styles.line2}>
         Estimated value: {formatDollarsRange(valueMin, valueMax)}
       </Text>
       <Text style={styles.note}>
         {programCount > 1
-          ? "Each program redeems separately—we add up typical value per issuer."
-          : "Range depends on how you redeem—details below are illustrative."}
+          ? "Each program redeems separately. We add up typical value per issuer."
+          : "Range depends on how you redeem. Details below are illustrative."}
       </Text>
     </View>
   );

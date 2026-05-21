@@ -65,7 +65,6 @@ export type GoalFitSummary = {
   pointsShort: number;
   cashGap: number;
   programCount: number;
-  pointsBreakdown: string;
   primaryProgramLabel: string;
 };
 
@@ -114,5 +113,4 @@ export type RecommendationDetail = Recommendation & {
   goalFit: GoalFitSummary;
   offers: RedemptionOffer[];
   nextSteps: RecommendationStep[];
-  actions: RecommendationAction[];
 };

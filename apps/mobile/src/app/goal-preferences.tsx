@@ -53,7 +53,7 @@ const CUSTOM_OPTION = {
   value: "CUSTOM" as const,
   title: "Custom goal",
   subtitle:
-    "Get specific—international flights, luxury hotels, and more. (Trip planning comes later under Travel focused.)",
+    "Get specific: international flights, luxury hotels, and more. (Trip planning comes later under Travel focused.)",
 };
 
 export default function GoalPreferencesScreen() {
@@ -147,7 +147,7 @@ export default function GoalPreferencesScreen() {
       >
         <Text style={styles.lead}>
           Choose what “good” means for you. Pick a preset or define a custom
-          focus—your dashboard reorders after you save.
+          focus. Your dashboard reorders after you save.
         </Text>
 
         {showSkeleton ? (

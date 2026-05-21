@@ -18,6 +18,7 @@ type Props = {
   offer: RedemptionOffer;
   saved?: boolean;
   highlighted?: boolean;
+  compact?: boolean;
   onPress?: () => void;
 };
 
@@ -25,6 +26,7 @@ export function OfferCard({
   offer,
   saved = false,
   highlighted = false,
+  compact = false,
   onPress,
 }: Props) {
   return (
@@ -33,6 +35,7 @@ export function OfferCard({
       disabled={!onPress}
       style={({ pressed }) => [
         styles.card,
+        compact && styles.cardCompact,
         highlighted && styles.cardHighlight,
         pressed && onPress && styles.pressed,
       ]}
@@ -53,10 +56,15 @@ export function OfferCard({
           ) : null}
         </View>
       </View>
-      <Text style={styles.partner}>{offer.partner}</Text>
-      <Text style={styles.via}>Redeem from {offer.programLabel}</Text>
+      <Text style={[styles.partner, compact && styles.partnerCompact]}>
+        {offer.partner}
+        {compact ? `, ${offer.programLabel}` : ""}
+      </Text>
+      {!compact ? (
+        <Text style={styles.via}>Redeem from {offer.programLabel}</Text>
+      ) : null}
 
-      <View style={styles.metrics}>
+      <View style={[styles.metrics, compact && styles.metricsCompact]}>
         <View>
           <Text style={styles.metricLabel}>Points needed</Text>
           <Text style={styles.metricValue}>{formatPoints(offer.pointsRequired)}</Text>
@@ -92,6 +100,11 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     padding: 16,
     marginBottom: 12,
+  },
+  cardCompact: {
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 12,
   },
   cardHighlight: {
     borderColor: "#2563eb",
@@ -146,6 +159,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#4b5563",
   },
+  partnerCompact: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
   via: {
     fontSize: 13,
     color: "#9ca3af",
@@ -155,6 +172,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
     marginBottom: 12,
+  },
+  metricsCompact: {
+    marginBottom: 8,
   },
   metricLabel: {
     fontSize: 12,

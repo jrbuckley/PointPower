@@ -4,31 +4,28 @@ import { SkeletonBox, SkeletonLines } from "./Skeleton";
 export function RecommendationDetailSkeleton() {
   return (
     <View style={styles.wrap}>
-      <SkeletonBox height={28} width="88%" />
-      <SkeletonBox height={22} width="60%" style={styles.gapMd} />
-      <SkeletonBox height={28} width={96} borderRadius={14} style={styles.gapMd} />
+      <SkeletonBox height={24} width="88%" />
+      <View style={styles.headerMeta}>
+        <SkeletonBox height={28} width={96} borderRadius={14} />
+        <SkeletonBox height={20} width="38%" />
+      </View>
+
+      <SkeletonBox height={20} width={180} style={styles.gapLg} />
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={styles.offerCard}>
+          <SkeletonBox height={18} width="80%" />
+          <SkeletonBox height={14} width="65%" style={styles.gapSm} />
+          <View style={styles.offerMetrics}>
+            <SkeletonBox height={32} width="40%" />
+            <SkeletonBox height={32} width="40%" />
+          </View>
+        </View>
+      ))}
 
       <View style={styles.goalCard}>
         <SkeletonBox height={20} width="75%" />
         <SkeletonLines lines={2} lastLineWidth="90%" />
-        <View style={styles.statRow}>
-          <SkeletonBox height={48} style={styles.stat} />
-          <SkeletonBox height={48} style={styles.stat} />
-          <SkeletonBox height={48} style={styles.stat} />
-        </View>
       </View>
-
-      <SkeletonBox height={18} width={160} style={styles.gapLg} />
-      {[0, 1, 2].map((i) => (
-        <View key={i} style={styles.offerCard}>
-          <SkeletonBox height={18} width="80%" />
-          <SkeletonBox height={14} width="50%" style={styles.gapSm} />
-          <View style={styles.offerMetrics}>
-            <SkeletonBox height={36} width="40%" />
-            <SkeletonBox height={36} width="40%" />
-          </View>
-        </View>
-      ))}
 
       <SkeletonBox height={48} borderRadius={12} style={styles.gapMd} />
       <SkeletonBox height={48} borderRadius={12} />
@@ -40,6 +37,13 @@ const styles = StyleSheet.create({
   wrap: {
     padding: 20,
     paddingBottom: 40,
+  },
+  headerMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 4,
   },
   goalCard: {
     backgroundColor: "#fff",

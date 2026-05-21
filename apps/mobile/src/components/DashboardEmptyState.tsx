@@ -7,7 +7,7 @@ const BENEFITS = [
   },
   {
     title: "Compare redemption paths",
-    body: "See how cash back, bank travel sites, and partner transfers stack up—without spreadsheets.",
+    body: "See how cash back, bank travel sites, and partner transfers stack up, without spreadsheets.",
   },
   {
     title: "Match suggestions to your goals",
@@ -15,7 +15,7 @@ const BENEFITS = [
   },
   {
     title: "Stay in control",
-    body: "Plain-language guidance you can act on—or ignore—when you’re ready.",
+    body: "Plain-language guidance you can act on, or ignore, when you’re ready.",
   },
 ] as const;
 

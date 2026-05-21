@@ -16,7 +16,7 @@ const SLIDES = [
   },
   {
     title: "Compare redemption options",
-    body: "We highlight a few clear paths—no spreadsheets required.",
+    body: "We highlight a few clear paths. No spreadsheets required.",
   },
   {
     title: "More value without complexity",

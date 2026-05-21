@@ -14,27 +14,27 @@ type Props = {
 };
 
 export function GoalFitCard({ goalFit }: Props) {
-  const s = STATUS_STYLES[goalFit.status];
+  const status = STATUS_STYLES[goalFit.status];
 
   const summary =
     goalFit.programCount > 1
       ? goalFit.status === "full"
-        ? `${goalFit.percentCovered}% combined · ${goalFit.pointsBreakdown}`
-        : `${goalFit.percentCovered}% combined · ${formatPoints(goalFit.pointsShort)} pts to go`
+        ? `${goalFit.percentCovered}% combined coverage`
+        : `${goalFit.percentCovered}% combined, ${formatPoints(goalFit.pointsShort)} pts to go`
       : goalFit.status === "full"
         ? `${goalFit.percentCovered}% of your goal`
-        : `${goalFit.percentCovered}% covered · ${formatPoints(goalFit.pointsShort)} pts to go`;
+        : `${goalFit.percentCovered}% covered, ${formatPoints(goalFit.pointsShort)} pts to go`;
 
   return (
     <CollapsibleCard
       title={goalFit.headline}
       summary={summary}
-      backgroundColor={s.bg}
-      borderColor={s.border}
+      backgroundColor={status.bg}
+      borderColor={status.border}
       style={styles.card}
       headerRight={
-        <View style={[styles.badge, { backgroundColor: s.badge }]}>
-          <Text style={styles.badgeText}>{s.label}</Text>
+        <View style={[styles.badge, { backgroundColor: status.badge }]}>
+          <Text style={styles.badgeText}>{status.label}</Text>
         </View>
       }
     >
@@ -42,7 +42,7 @@ export function GoalFitCard({ goalFit }: Props) {
       <Text style={styles.meta}>
         {formatPoints(goalFit.pointsYouHave)} pts combined of{" "}
         {formatPoints(goalFit.pointsForFullCoverage)} typical for this goal
-        {goalFit.programCount > 1 ? " · see offers per program below" : ""}
+        {goalFit.programCount > 1 ? ", with offers grouped by program above" : ""}
       </Text>
       {goalFit.status !== "full" ? (
         <Text style={styles.gap}>

@@ -73,8 +73,8 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.body}>
-          PointPower helps you understand what you already have—in dollars and
-          simple tradeoffs—not sell you new cards.
+          PointPower helps you understand what you already have, in dollars and
+          simple tradeoffs, not to sell you new cards.
         </Text>
         <Text style={styles.meta}>Version 1.0 (preview)</Text>
       </View>

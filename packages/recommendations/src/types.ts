@@ -49,8 +49,6 @@ export type GoalFitSummary = {
   cashGap: number;
   /** Number of programs with a balance > 0. */
   programCount: number;
-  /** Human-readable breakdown, e.g. "Chase UR 50k · Amex MR 30k". */
-  pointsBreakdown: string;
   primaryProgramLabel: string;
 };
 
@@ -101,7 +99,6 @@ export type RecommendationDetail = Recommendation & {
   goalFit: GoalFitSummary;
   offers: RedemptionOffer[];
   nextSteps: RecommendationStep[];
-  actions: RecommendationAction[];
 };
 
 export type ValueComparisonRow = {

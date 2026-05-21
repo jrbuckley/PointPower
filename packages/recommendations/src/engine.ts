@@ -254,7 +254,7 @@ export function generateRecommendations(
 
   const multiProgram = programCount > 1;
   const multiSuffix = multiProgram
-    ? " Estimates add up each program separately—points can’t be combined across issuers."
+    ? " Estimates add up each program separately. Points can’t be combined across issuers."
     : "";
 
   const recs: Recommendation[] = [
@@ -388,7 +388,7 @@ function goalTargetForContext(
 
   if (ctx.goalPreference === "MAX_VALUE") {
     return {
-      label: `${baseLabel} — ${preset?.labelSuffix ?? "high-value partner redemption"}`,
+      label: `${baseLabel}, ${preset?.labelSuffix ?? "high-value partner redemption"}`,
       pointsRequired: Math.max(
         preset?.pointsRequired ?? 75_000,
         Math.round(rec.pointsUsed * 0.85),
@@ -399,20 +399,20 @@ function goalTargetForContext(
   if (ctx.goalPreference === "KEEP_IT_SIMPLE") {
     const pts = Math.max(preset?.pointsRequired ?? 10_000, Math.round(rec.pointsUsed * 0.5));
     return {
-      label: `${baseLabel} — ${preset?.labelSuffix ?? "straightforward statement credit"}`,
+      label: `${baseLabel}, ${preset?.labelSuffix ?? "straightforward statement credit"}`,
       pointsRequired: pts,
       cashValue: dollarsFor(pts, 1),
     };
   }
   if (ctx.goalPreference === "TRAVEL_FOCUSED") {
     return {
-      label: `${baseLabel} — ${preset?.labelSuffix ?? "round-trip economy flight + hotel night"}`,
+      label: `${baseLabel}, ${preset?.labelSuffix ?? "round-trip economy flight + hotel night"}`,
       pointsRequired: preset?.pointsRequired ?? 55_000,
       cashValue: preset?.cashValueUsd ?? 1_100,
     };
   }
   return {
-    label: `${baseLabel} — ${preset?.labelSuffix ?? "$500+ in cash back or credits"}`,
+    label: `${baseLabel}, ${preset?.labelSuffix ?? "$500+ in cash back or credits"}`,
     pointsRequired: preset?.pointsRequired ?? 50_000,
     cashValue: preset?.cashValueUsd ?? 500,
   };
@@ -423,8 +423,7 @@ function buildGoalFit(
   target: GoalTarget,
   rec: Recommendation,
 ): GoalFitSummary {
-  const { totalPoints, programCount, pointsBreakdown, primary } =
-    summarizeBalances(balances);
+  const { totalPoints, programCount, primary } = summarizeBalances(balances);
   const status = coverageStatus(totalPoints, target.pointsRequired);
   const percentCovered = Math.min(
     100,
@@ -435,7 +434,7 @@ function buildGoalFit(
 
   const planningNote =
     programCount > 1
-      ? " Totals are across programs for planning only—you redeem each issuer separately."
+      ? " Totals are across programs for planning only. You redeem each issuer separately."
       : "";
 
   const offerNote =
@@ -445,12 +444,12 @@ function buildGoalFit(
 
   const headlines: Record<GoalCoverageStatus, string> = {
     full: "Your points can cover this goal",
-    partial: "Partial coverage — you’re close",
-    stretch: "Stretch goal — plan to earn or combine",
+    partial: "Partial coverage. You’re close",
+    stretch: "Stretch goal. Plan to earn or combine",
   };
 
   const details: Record<GoalCoverageStatus, string> = {
-    full: `You have about ${totalPoints.toLocaleString()} points toward ${target.label} (${pointsBreakdown}).${planningNote}${offerNote}`,
+    full: `You have about ${totalPoints.toLocaleString()} combined points toward ${target.label}.${planningNote}${offerNote}`,
     partial: `You’re at roughly ${percentCovered}% of a typical ${target.label} on a combined basis.${planningNote} You can book a smaller offer now or earn about ${pointsShort.toLocaleString()} more.`,
     stretch: `You’d need about ${pointsShort.toLocaleString()} more points combined (~$${Math.round(cashGap).toLocaleString()} at typical rates) for full coverage.${planningNote}${offerNote}`,
   };
@@ -466,7 +465,6 @@ function buildGoalFit(
     pointsShort,
     cashGap,
     programCount,
-    pointsBreakdown,
     primaryProgramLabel: primary.label,
   };
 }
@@ -609,30 +607,6 @@ export function buildOffers(
   return offers;
 }
 
-function buildActions(rec: Recommendation, programLabel: string): RecommendationAction[] {
-  if (rec.redemptionType === "transfer") return [];
-  if (rec.redemptionType === "portal") {
-    return [
-      {
-        id: "compare-cash",
-        label: "Compare cash price",
-        description: "See if a transfer partner beats portal pricing.",
-        kind: "secondary",
-        actionType: "compare_alternatives",
-      },
-    ];
-  }
-  return [
-    {
-      id: "compare-travel",
-      label: "Compare travel value",
-      description: "See if a portal or transfer beats cash back.",
-      kind: "secondary",
-      actionType: "compare_alternatives",
-    },
-  ];
-}
-
 export function getOfferPrimaryAction(
   rec: Recommendation,
   program: ProgramInfo,
@@ -677,82 +651,68 @@ function buildNextSteps(
 ): RecommendationStep[] {
   const multi = goalFit.programCount > 1;
 
-  const steps: RecommendationStep[] = [
-    {
-      order: 1,
-      title: multi ? "Review balances by program" : "Confirm your balance",
-      detail: multi
-        ? goalFit.pointsBreakdown +
-          ". Points stay with each issuer until you redeem—you can’t move them between banks."
-        : `You have ${goalFit.pointsYouHave.toLocaleString()} points in ${goalFit.primaryProgramLabel}.`,
-    },
-    {
-      order: 2,
-      title: multi ? "Pick a program and offer" : "Choose an offer",
-      detail: multi
-        ? "Each offer shows which points to use (e.g. Chase vs Amex). Start with the program you want to spend down."
-        : "Tap an offer below to see details and start redemption.",
-    },
-  ];
-
   if (rec.redemptionType === "transfer") {
     const smallestFit = offers
       .filter((o) => o.coverageStatus !== "stretch")
       .sort((a, b) => a.pointsRequired - b.pointsRequired)[0];
 
-    steps.push(
+    return [
       {
-        order: 3,
+        order: 1,
         title: "Search partner award space",
-        detail: "Find flights or hotels before moving points—transfers are usually irreversible.",
+        detail: "Find flights or hotels before moving points. Transfers are usually irreversible.",
       },
       {
-        order: 4,
+        order: 2,
         title: "Transfer only what you need",
         detail: smallestFit
           ? `Example: ${smallestFit.title} needs ${smallestFit.pointsRequired.toLocaleString()} ${smallestFit.programLabel} pts. Transfer 1:1, then book within 24 hours.`
           : "Move points 1:1 to the partner, then book within 24 hours.",
       },
       {
-        order: 5,
+        order: 3,
         title: "Book and save confirmation",
         detail: "Screenshot taxes/fees and cancellation rules.",
       },
-    );
-  } else if (rec.redemptionType === "portal") {
-    steps.push(
-      {
-        order: 3,
-        title: "Search the right travel portal",
-        detail: multi
-          ? "Open the portal for the program on the offer—Chase Travel and Amex Travel are separate."
-          : "Filter by dates and “pay with points” to see true cost.",
-      },
-      { order: 4, title: "Check refundable options", detail: "Especially if you’re still earning toward a bigger trip." },
-      {
-        order: 5,
-        title: "Complete checkout with points",
-        detail: "Portal prices can change—book when the offer matches your goal.",
-      },
-    );
-  } else {
-    steps.push(
-      {
-        order: 3,
-        title: "Pick a credit amount",
-        detail: multi
-          ? "Redeem in each issuer’s app for the offers under that program."
-          : "Partial redemptions are fine if you’re not covering a full trip.",
-      },
-      {
-        order: 4,
-        title: "Redeem in your issuer app",
-        detail: "Statement credits usually post within 1–2 billing cycles.",
-      },
-    );
+    ];
   }
 
-  return steps;
+  if (rec.redemptionType === "portal") {
+    return [
+      {
+        order: 1,
+        title: "Search the right travel portal",
+        detail: multi
+          ? "Open the portal for the program on the offer."
+          : "Filter by dates and “pay with points” to see true cost.",
+      },
+      {
+        order: 2,
+        title: "Check refundable options",
+        detail: "Especially if you’re still earning toward a bigger trip.",
+      },
+      {
+        order: 3,
+        title: "Complete checkout with points",
+        detail: "Portal prices can change, book when the offer matches your goal.",
+      },
+    ];
+  }
+
+  return [
+    {
+      order: 1,
+      title: "Pick a credit amount",
+      detail: multi
+        ? "Redeem in each issuer’s app for the offers above."
+        : "Partial redemptions are fine if you’re not covering a full trip.",
+    },
+    {
+      order: 2,
+      title: "Redeem in your issuer app",
+      detail: "Statement credits usually post within 1 to 2 billing cycles.",
+    },
+  ];
 }
 
 const detailCopy: Record<
@@ -773,7 +733,7 @@ const detailCopy: Record<
     whyRecommended:
       "You get money back in the bank or on your statement without hunting for award space.",
     effortExplanation:
-      "Mostly a few taps in your card’s app or website—great when you want clarity over squeezing every penny.",
+      "Mostly a few taps in your card’s app or website. Great when you want clarity over squeezing every penny.",
     unlockExamples: [
       "Paying down your balance or covering everyday purchases",
       "A simple statement credit when you don’t want to think about travel",
@@ -863,7 +823,6 @@ export function buildRecommendationDetail(
   const target = goalTargetForContext(catalog, ctx, rec);
   const goalFit = buildGoalFit(rewardBalances, target, rec);
   const offers = buildOffers(catalog, rec, rewardBalances, ctx);
-  const actions = buildActions(rec, goalFit.primaryProgramLabel);
   const nextSteps = buildNextSteps(rec, goalFit, offers);
 
   const cashbackValue = estimatedValueAcrossPrograms(
@@ -880,7 +839,6 @@ export function buildRecommendationDetail(
     vsCashbackExtraDollars,
     goalFit,
     offers,
-    actions,
     nextSteps,
   };
 }
@@ -946,7 +904,7 @@ export function buildDashboardSummary(
     totalPoints === 0
       ? "Add your balances to see personalized estimates."
       : ctx.goalPreference === "CUSTOM"
-        ? "Suggestions are tuned to your custom focus—save to refresh rankings."
+        ? "Suggestions are tuned to your custom focus. Save to refresh rankings."
         : uplift > 0
           ? `Your strongest option could be worth about ${uplift}% more than simple cash back.`
           : "Compare options below to see what fits your style.";

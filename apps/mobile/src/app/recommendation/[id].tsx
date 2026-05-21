@@ -1,6 +1,7 @@
 import type { RecommendationId } from "@points-exchange/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { CollapsibleCard } from "../../components/CollapsibleCard";
 import { CollapsibleSection } from "../../components/CollapsibleSection";
 import { DifficultyBadge } from "../../components/DifficultyBadge";
 import { GoalFitCard } from "../../components/recommendation/GoalFitCard";
@@ -32,6 +33,19 @@ function groupOffersByProgram(
   return order.map((label) => [label, map.get(label)!]);
 }
 
+function redemptionStepsSummary(
+  redemptionType: string,
+  stepCount: number,
+): string {
+  if (redemptionType === "transfer") {
+    return `${stepCount} steps: search awards, transfer, then book`;
+  }
+  if (redemptionType === "portal") {
+    return `${stepCount} steps: search portal, then checkout with points`;
+  }
+  return `${stepCount} steps: pick amount, redeem in issuer app`;
+}
+
 export default function RecommendationDetailScreen() {
   const { id, highlightOffer } = useLocalSearchParams<{
     id: string;
@@ -61,7 +75,7 @@ export default function RecommendationDetailScreen() {
       {
         id: `reminder-${offer.id}`,
         label: "Remind me before expiry",
-        description: `${offer.title} · ${offer.expiresLabel}`,
+        description: `${offer.title}. ${offer.expiresLabel}`,
         kind: "secondary",
         actionType: "set_reminder",
       },
@@ -105,7 +119,7 @@ export default function RecommendationDetailScreen() {
     const message = [
       offer.partner,
       "",
-      `${formatPoints(offer.pointsRequired)} pts · ${formatDollars(offer.estimatedCashValue)}`,
+      `${formatPoints(offer.pointsRequired)} pts, ${formatDollars(offer.estimatedCashValue)}`,
       offer.expiresLabel,
       offer.availabilityNote,
     ]
@@ -138,7 +152,6 @@ export default function RecommendationDetailScreen() {
     );
   }
 
-  const secondaryActions = data.actions.filter((a) => a.kind === "secondary");
   const extraVersusCash =
     data.vsCashbackExtraDollars > 0
       ? `About ${formatDollars(data.vsCashbackExtraDollars)} more than a simple cash-out at typical rates.`
@@ -156,68 +169,69 @@ export default function RecommendationDetailScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.title}>{data.title}</Text>
-      <Text style={styles.valueLine}>
-        Estimated value: {formatDollars(data.estimatedDollarValue)}
-      </Text>
-      <View style={styles.badgeRow}>
-        <DifficultyBadge difficulty={data.difficulty} />
+      <View style={styles.header}>
+        <Text style={styles.title}>{data.title}</Text>
+        <View style={styles.headerMeta}>
+          <Text style={styles.valueLine}>
+            {formatDollars(data.estimatedDollarValue)} est.
+          </Text>
+          <DifficultyBadge difficulty={data.difficulty} />
+        </View>
+      </View>
+
+      <View style={styles.offersBlock}>
+        <Text style={styles.offersTitle}>Offers you can use</Text>
+        <Text style={styles.offersHint}>
+          {data.goalFit.programCount > 1
+            ? "Tap an offer. Each one uses points from that program only."
+            : "Tap an offer for actions and reminders."}
+        </Text>
+        {groupOffersByProgram(data.offers).map(([programLabel, programOffers]) => (
+          <View key={programLabel} style={styles.offerGroup}>
+            {data.goalFit.programCount > 1 ? (
+              <Text style={styles.offerGroupTitle}>{programLabel}</Text>
+            ) : null}
+            {programOffers.map((offer) => (
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                compact
+                saved={isOfferSaved(offer.id)}
+                highlighted={
+                  highlightOffer === offer.id || highlightOffer === offer.offerKey
+                }
+                onPress={() => onOfferPress(offer)}
+              />
+            ))}
+          </View>
+        ))}
       </View>
 
       <GoalFitCard goalFit={data.goalFit} />
 
-      <Text style={styles.sectionTitle}>What to do</Text>
-      {data.nextSteps.map((step) => (
-        <View key={step.order} style={styles.stepRow}>
-          <View style={styles.stepNum}>
-            <Text style={styles.stepNumText}>{step.order}</Text>
+      <CollapsibleCard
+        title="How to redeem"
+        summary={redemptionStepsSummary(
+          data.redemptionType,
+          data.nextSteps.length,
+        )}
+        defaultOpen={false}
+        style={styles.stepsCard}
+      >
+        {data.nextSteps.map((step) => (
+          <View key={step.order} style={styles.stepRow}>
+            <View style={styles.stepNum}>
+              <Text style={styles.stepNumText}>{step.order}</Text>
+            </View>
+            <View style={styles.stepBody}>
+              <Text style={styles.stepTitle}>{step.title}</Text>
+              {step.detail ? (
+                <Text style={styles.stepDetail}>{step.detail}</Text>
+              ) : null}
+            </View>
           </View>
-          <View style={styles.stepBody}>
-            <Text style={styles.stepTitle}>{step.title}</Text>
-            {step.detail ? <Text style={styles.stepDetail}>{step.detail}</Text> : null}
-          </View>
-        </View>
-      ))}
-
-      {secondaryActions.length > 0 ? (
-        <View style={styles.secondaryLinks}>
-          {secondaryActions.map((action) => (
-            <Pressable
-              key={action.id}
-              onPress={() => runRecommendationAction(action, router)}
-              hitSlop={6}
-              accessibilityRole="button"
-            >
-              <Text style={styles.secondaryLink}>{action.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Offers you can use</Text>
-      <Text style={styles.sectionHint}>
-        {data.goalFit.programCount > 1
-          ? "Each section uses points from that program only—tap an offer for details."
-          : "Tap an offer for details and save."}
-      </Text>
-      {groupOffersByProgram(data.offers).map(([programLabel, programOffers]) => (
-        <View key={programLabel} style={styles.offerGroup}>
-          {data.goalFit.programCount > 1 ? (
-            <Text style={styles.offerGroupTitle}>{programLabel}</Text>
-          ) : null}
-          {programOffers.map((offer) => (
-            <OfferCard
-              key={offer.id}
-              offer={offer}
-              saved={isOfferSaved(offer.id)}
-              highlighted={
-                highlightOffer === offer.id || highlightOffer === offer.offerKey
-              }
-              onPress={() => onOfferPress(offer)}
-            />
-          ))}
-        </View>
-      ))}
+        ))}
+      </CollapsibleCard>
 
       <CollapsibleSection
         title="About this option"
@@ -277,48 +291,62 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "600",
   },
+  header: {
+    marginBottom: 12,
+    gap: 8,
+  },
+  headerMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: "#111827",
-    marginBottom: 8,
+    lineHeight: 28,
   },
   valueLine: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
     color: "#059669",
-    marginBottom: 12,
+    flexShrink: 1,
+    textAlign: "right",
   },
-  badgeRow: {
-    marginBottom: 8,
+  offersBlock: {
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 18,
+  offersTitle: {
+    fontSize: 20,
     fontWeight: "800",
     color: "#111827",
-    marginBottom: 8,
-    marginTop: 8,
+    marginBottom: 4,
   },
-  sectionHint: {
-    fontSize: 14,
+  offersHint: {
+    fontSize: 13,
     color: "#6b7280",
-    marginBottom: 14,
-    lineHeight: 20,
+    marginBottom: 10,
+    lineHeight: 18,
   },
   offerGroup: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   offerGroupTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     color: "#374151",
-    marginBottom: 10,
-    marginTop: 4,
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  stepsCard: {
+    marginBottom: 16,
   },
   stepRow: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 12,
+    marginTop: 4,
   },
   stepNum: {
     width: 28,
@@ -346,18 +374,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     lineHeight: 20,
-  },
-  secondaryLinks: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    marginBottom: 24,
-    marginTop: 4,
-  },
-  secondaryLink: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2563eb",
   },
   aboutCard: {
     marginBottom: 0,

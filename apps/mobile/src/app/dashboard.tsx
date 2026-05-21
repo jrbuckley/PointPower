@@ -46,7 +46,7 @@ export default function DashboardScreen() {
   const showContent = !showEmpty && data;
   const pointsSummary = summarizeBalances(balancesToInput(rewardBalances));
 
-  function navigate(path: "/saved-offers" | "/goal-preferences" | "/settings") {
+  function navigate(path: "/saved-offers" | "/rewards-accounts" | "/settings") {
     setMenuOpen(false);
     router.push(path);
   }
@@ -57,12 +57,12 @@ export default function DashboardScreen() {
         <Text style={styles.brand}>PointPower</Text>
         <View style={styles.topLinks}>
           <Pressable
-            onPress={() => router.push("/rewards-accounts")}
+            onPress={() => router.push("/goal-preferences")}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Programs"
+            accessibilityLabel="Goals"
           >
-            <Text style={styles.link}>Programs</Text>
+            <Text style={styles.link}>Goals</Text>
           </Pressable>
           <Pressable
             onPress={() => setMenuOpen((v) => !v)}
@@ -86,11 +86,11 @@ export default function DashboardScreen() {
             <Text style={styles.menuItemText}>Saved offers</Text>
           </Pressable>
           <Pressable
-            onPress={() => navigate("/goal-preferences")}
+            onPress={() => navigate("/rewards-accounts")}
             style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
             accessibilityRole="button"
           >
-            <Text style={styles.menuItemText}>Goals</Text>
+            <Text style={styles.menuItemText}>Programs</Text>
           </Pressable>
           <Pressable
             onPress={() => navigate("/settings")}
@@ -134,7 +134,6 @@ export default function DashboardScreen() {
                 valueMin={data.valueRangeMin}
                 valueMax={data.valueRangeMax}
                 programCount={pointsSummary.programCount}
-                pointsBreakdown={pointsSummary.pointsBreakdown}
               />
 
               <View style={styles.insight}>
@@ -143,7 +142,7 @@ export default function DashboardScreen() {
 
               <Text style={styles.sectionTitle}>Top options for you</Text>
               <Text style={styles.sectionHint}>
-                Ordered by what you said matters—tap any card to learn more.
+                Ordered by what you said matters. Tap any card to learn more.
               </Text>
 
               {data.recommendations.map((rec) => (
