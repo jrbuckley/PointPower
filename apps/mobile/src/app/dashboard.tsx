@@ -44,7 +44,9 @@ export default function DashboardScreen() {
   const showSkeleton =
     !showEmpty && !data && (isPending || isFetching || apiHydrating);
   const showContent = !showEmpty && data;
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const pointsSummary = summarizeBalances(balancesToInput(rewardBalances));
+  const moreCount = data?.moreRecommendations?.length ?? 0;
 
   function navigate(path: "/saved-offers" | "/rewards-accounts" | "/settings") {
     setMenuOpen(false);
@@ -158,6 +160,40 @@ export default function DashboardScreen() {
                 />
               ))}
 
+              {moreCount > 0 ? (
+                <>
+                  <Pressable
+                    onPress={() => setShowMoreOptions((v) => !v)}
+                    style={({ pressed }) => [
+                      styles.seeMore,
+                      pressed && styles.seeMorePressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showMoreOptions }}
+                  >
+                    <Text style={styles.seeMoreText}>
+                      {showMoreOptions
+                        ? "Show fewer options"
+                        : `See ${moreCount} more option${moreCount === 1 ? "" : "s"}`}
+                    </Text>
+                  </Pressable>
+                  {showMoreOptions
+                    ? data.moreRecommendations.map((rec) => (
+                        <RecommendationCard
+                          key={rec.id}
+                          recommendation={rec}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/recommendation/[id]",
+                              params: { id: rec.id },
+                            })
+                          }
+                        />
+                      ))
+                    : null}
+                </>
+              ) : null}
+
               <CollapsibleSection
                 title="Compare all paths"
                 summary="See estimated value across redemption types"
@@ -258,6 +294,21 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 14,
     lineHeight: 20,
+  },
+  seeMore: {
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  seeMorePressed: {
+    opacity: 0.7,
+  },
+  seeMoreText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2563eb",
   },
   compareRow: {
     flexDirection: "row",

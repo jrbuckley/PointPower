@@ -17,7 +17,6 @@ type ValuationRuleRow = {
 
 type OfferRow = {
   offer_key: string;
-  recommendation_id: string;
   redemption_method_code: string;
   reward_program_code: string | null;
   title: string;
@@ -64,7 +63,6 @@ export async function loadValuationCatalog(
       .select(
         `
         offer_key,
-        recommendation_id,
         redemption_method_code,
         reward_program_code,
         title,
@@ -120,7 +118,6 @@ export async function loadValuationCatalog(
     }),
     offers: ((offersRes.data ?? []) as OfferRow[]).map((row) => ({
       offerKey: row.offer_key,
-      recommendationId: row.recommendation_id as ValuationCatalog["offers"][0]["recommendationId"],
       redemptionMethodCode: row.redemption_method_code as ValuationCatalog["offers"][0]["redemptionMethodCode"],
       rewardProgramCode: row.reward_program_code,
       title: row.title,

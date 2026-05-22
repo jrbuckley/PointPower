@@ -18,14 +18,10 @@ export type GoalContext = {
   customGoalCode: CustomGoalCode | null;
 };
 
-export type RecommendationLabel =
-  | "BEST_VALUE"
-  | "EASIEST"
-  | "BEST_FOR_TRAVEL";
-
 export type Recommendation = {
   id: RecommendationId;
-  label: RecommendationLabel;
+  /** Short label on dashboard cards, e.g. "Most effective". */
+  tagline: string;
   title: string;
   description: string;
   estimatedDollarValue: number;
@@ -112,7 +108,10 @@ export type DashboardSummary = {
   totalPoints: number;
   valueRangeMin: number;
   valueRangeMax: number;
+  /** Top strategies for the user’s goal (up to 3). */
   recommendations: Recommendation[];
+  /** Additional goal-relevant strategies behind “See more”, when any. */
+  moreRecommendations: Recommendation[];
   comparison: ValueComparisonRow[];
   insightMessage: string;
 };

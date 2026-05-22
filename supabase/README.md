@@ -30,6 +30,7 @@ Add a new file under `migrations/` with a timestamp prefix, e.g. `20260520120000
 6. `20260518120000_seed_valuations_and_offers.sql`
 7. `20260519120000_offer_program_code.sql`
 8. `20260521120000_refresh_catalog_copy.sql`
+9. `20260522120000_drop_offer_recommendation_bucket.sql`
 
 ## Updating seed data after the DB already exists
 
@@ -39,6 +40,6 @@ Editing an old migration file does nothing on a database that already ran it. Us
 2. **Quick test:** paste the same SQL into the Supabase SQL Editor and run once.
 3. **Dev only:** `supabase db reset --linked` wipes auth + app data and reapplies all migrations.
 
-Recommendation headlines and goal-fit copy come from the API engine, not these tables. Only `goal_redemption_targets` and `redemption_offers` text lives in the database.
+Recommendation headlines and goal-fit copy come from the API engine, not these tables. Offers are keyed by `redemption_method_code` (transfer / portal / cashback); dashboard strategies filter offers in app code. `saved_offers.recommendation_id` stores the strategy id (e.g. `MOST_EFFECTIVE`), not a catalog bucket.
 
 Email templates for Auth live in `email-templates/`.

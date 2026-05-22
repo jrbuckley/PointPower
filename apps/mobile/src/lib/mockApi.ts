@@ -1,4 +1,8 @@
-import { buildDashboardSummary } from "@points-exchange/recommendations";
+import {
+  buildDashboardSummary,
+  normalizeRecommendationId,
+  strategyToRecommendationId,
+} from "@points-exchange/recommendations";
 import type {
   DashboardSummary,
   RecommendationDetail,
@@ -34,7 +38,12 @@ export async function getRecommendationDetail(input: {
   await delay(150);
 
   const recs = generateRecommendations(input.rewardBalances, input.goal);
-  const base = recs.find((r) => r.id === input.id);
+  const canonical = normalizeRecommendationId(input.id);
+  const base = recs.find(
+    (r) =>
+      r.id === input.id ||
+      (canonical !== null && r.id === strategyToRecommendationId(canonical)),
+  );
   if (!base) return null;
 
   return buildRecommendationDetail(base, input.rewardBalances, input.goal);

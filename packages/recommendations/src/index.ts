@@ -7,6 +7,7 @@ export {
   offerInstanceId,
   formatOfferExpiry,
   generateRecommendations,
+  generateDashboardRecommendations,
   getOfferPrimaryAction,
   listOffersForRecommendation,
   primaryProgram,
@@ -16,4 +17,11 @@ export {
   valueRangeForBalances,
 } from "./engine.js";
 export { resolveTuning, CUSTOM_GOAL_TUNING } from "./customGoalTuning.js";
+export {
+  normalizeRecommendationId,
+  strategyToRecommendationId,
+  comparisonMethodsForGoal,
+  dashboardStrategyIds,
+  DASHBOARD_PRIMARY_LIMIT,
+} from "./strategies.js";
 export type * from "./types.js";

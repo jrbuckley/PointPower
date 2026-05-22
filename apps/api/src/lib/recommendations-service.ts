@@ -2,6 +2,8 @@ import {
   buildDashboardSummary,
   buildRecommendationDetail,
   generateRecommendations,
+  normalizeRecommendationId,
+  strategyToRecommendationId,
 } from "@points-exchange/recommendations";
 import type { CustomGoalCode, GoalPreference, ValuationCatalog } from "@points-exchange/shared";
 import type { GoalContext } from "@points-exchange/recommendations";
@@ -58,7 +60,12 @@ export function getRecommendationDetailForUser(
   goal: RecommendationGoalContext,
 ) {
   const recs = generateRecommendations(catalog, balances, goal);
-  const base = recs.find((r: { id: string }) => r.id === recommendationId);
+  const canonical = normalizeRecommendationId(recommendationId);
+  const base = recs.find(
+    (r: { id: string }) =>
+      r.id === recommendationId ||
+      (canonical !== null && r.id === strategyToRecommendationId(canonical)),
+  );
   if (!base) return null;
   return buildRecommendationDetail(catalog, base, balances, goal);
 }

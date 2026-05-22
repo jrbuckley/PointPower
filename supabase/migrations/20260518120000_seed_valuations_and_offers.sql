@@ -31,9 +31,6 @@ where custom_goal_code is not null;
 create table public.redemption_offers (
   id uuid primary key default gen_random_uuid(),
   offer_key text not null unique,
-  recommendation_id text not null check (
-    recommendation_id in ('BEST_VALUE', 'EASIEST', 'BEST_FOR_TRAVEL')
-  ),
   redemption_method_code text not null references public.redemption_methods(code),
   title text not null,
   partner_name text not null,
@@ -50,9 +47,6 @@ create table public.redemption_offers (
 
 create index redemption_offers_method_idx
 on public.redemption_offers(redemption_method_code);
-
-create index redemption_offers_recommendation_idx
-on public.redemption_offers(recommendation_id);
 
 alter table public.goal_redemption_targets enable row level security;
 alter table public.redemption_offers enable row level security;
@@ -209,7 +203,6 @@ set
 -- Static offer catalog (resolved at read time with user balances)
 insert into public.redemption_offers (
   offer_key,
-  recommendation_id,
   redemption_method_code,
   title,
   partner_name,
@@ -225,7 +218,6 @@ insert into public.redemption_offers (
 values
   (
     'offer-united-saver',
-    'BEST_VALUE',
     'transfer',
     'United Saver, U.S. to Europe',
     'United MileagePlus',
@@ -240,7 +232,6 @@ values
   ),
   (
     'offer-hyatt-premium',
-    'BEST_VALUE',
     'transfer',
     'Hyatt premium category, 3 nights',
     'World of Hyatt',
@@ -255,7 +246,6 @@ values
   ),
   (
     'offer-air-france-promo',
-    'BEST_VALUE',
     'transfer',
     'Flying Blue promo award',
     'Air France / KLM',
@@ -270,7 +260,6 @@ values
   ),
   (
     'offer-portal-economy-rt',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Round-trip economy, bank travel portal',
     'Issuer travel portal',
@@ -285,7 +274,6 @@ values
   ),
   (
     'offer-portal-hotel-bundle',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Flight + hotel bundle',
     'Issuer travel portal',
@@ -300,7 +288,6 @@ values
   ),
   (
     'offer-portal-lastminute',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Last-minute weekend getaway',
     'Issuer travel portal',
@@ -315,7 +302,6 @@ values
   ),
   (
     'offer-statement-500',
-    'EASIEST',
     'cashback',
     '$500 statement credit',
     'Card issuer',
@@ -330,7 +316,6 @@ values
   ),
   (
     'offer-cash-deposit',
-    'EASIEST',
     'cashback',
     'Deposit to linked bank account',
     'Card issuer',
@@ -345,7 +330,6 @@ values
   ),
   (
     'offer-shop-with-points',
-    'EASIEST',
     'cashback',
     'Shop with points, everyday purchases',
     'Card issuer',
@@ -360,7 +344,6 @@ values
   )
 on conflict (offer_key) do update
 set
-  recommendation_id = excluded.recommendation_id,
   redemption_method_code = excluded.redemption_method_code,
   title = excluded.title,
   partner_name = excluded.partner_name,

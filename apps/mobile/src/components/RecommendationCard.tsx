@@ -8,12 +8,6 @@ type Props = {
   onPress: () => void;
 };
 
-const TAGLINE: Record<Recommendation["label"], string> = {
-  BEST_VALUE: "Strongest dollars",
-  EASIEST: "Least hassle",
-  BEST_FOR_TRAVEL: "Great for trips",
-};
-
 export function RecommendationCard({ recommendation, onPress }: Props) {
   return (
     <Pressable
@@ -21,7 +15,7 @@ export function RecommendationCard({ recommendation, onPress }: Props) {
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
     >
-      <Text style={styles.kicker}>{TAGLINE[recommendation.label]}</Text>
+      <Text style={styles.kicker}>{recommendation.tagline}</Text>
       <Text style={styles.title}>{recommendation.title}</Text>
       <Text style={styles.desc} numberOfLines={2}>
         {recommendation.description}

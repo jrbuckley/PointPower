@@ -5,6 +5,17 @@ import type {
   ValuationCatalog,
 } from "@points-exchange/shared";
 import { resolveTuning } from "./customGoalTuning.js";
+import {
+  applyStrategyTuning,
+  comparisonMethodsForGoal,
+  dashboardStrategyIds,
+  getStrategyDefinition,
+  isLimitedTimeTemplate,
+  normalizeRecommendationId,
+  strategyToRecommendationId,
+  type CanonicalStrategyId,
+  type StrategyDefinition,
+} from "./strategies.js";
 import type {
   DashboardSummary,
   GoalContext,
@@ -221,85 +232,168 @@ function effectiveCpp(
   return roundMoney(dbCpp * (tuningCpp / baseline));
 }
 
+function estimatedValuePrimaryProgram(
+  catalog: ValuationCatalog,
+  balances: RewardBalanceInput[],
+  ctx: GoalContext,
+  method: RedemptionMethodCode,
+): number {
+  const primary = primaryProgram(balances);
+  return dollarsFor(
+    primary.amount,
+    effectiveCppForProgram(catalog, primary.programCode, ctx, method),
+  );
+}
+
+function limitedOffersValueEstimate(
+  catalog: ValuationCatalog,
+  balances: RewardBalanceInput[],
+  methods: RedemptionMethodCode[],
+  primaryOnly: boolean,
+): number {
+  const programs = primaryOnly
+    ? [primaryProgram(balances)]
+    : activeBalances(balances).map((b) => ({
+        programCode: b.programCode,
+        label: PROGRAM_LABELS[b.programCode] ?? b.programCode,
+        amount: b.amount,
+      }));
+
+  const templates = catalog.offers.filter(
+    (t) =>
+      methods.includes(t.redemptionMethodCode) && isLimitedTimeTemplate(t),
+  );
+
+  let total = 0;
+  for (const template of templates) {
+    for (const program of programs) {
+      if (
+        template.rewardProgramCode &&
+        template.rewardProgramCode !== program.programCode
+      ) {
+        continue;
+      }
+      total += template.estimatedCashValueUsd;
+    }
+  }
+  return roundMoney(total);
+}
+
+function estimateStrategyValue(
+  catalog: ValuationCatalog,
+  balances: RewardBalanceInput[],
+  ctx: GoalContext,
+  strategy: StrategyDefinition,
+): number {
+  switch (strategy.valueMode) {
+    case "transfer_all":
+      return estimatedValueAcrossPrograms(catalog, balances, ctx, "transfer");
+    case "portal_all":
+      return estimatedValueAcrossPrograms(catalog, balances, ctx, "portal");
+    case "cashback_all":
+      return estimatedValueAcrossPrograms(catalog, balances, ctx, "cashback");
+    case "transfer_primary":
+      return estimatedValuePrimaryProgram(catalog, balances, ctx, "transfer");
+    case "portal_primary":
+      return estimatedValuePrimaryProgram(catalog, balances, ctx, "portal");
+    case "cashback_primary":
+      return estimatedValuePrimaryProgram(catalog, balances, ctx, "cashback");
+    case "limited_offers_sum":
+      return limitedOffersValueEstimate(
+        catalog,
+        balances,
+        strategy.offerMethods,
+        strategy.offerFilter === "primary_program_only",
+      );
+    default:
+      return 0;
+  }
+}
+
+function resolveStrategyForRecommendation(
+  recommendationId: string,
+  balances: RewardBalanceInput[],
+  ctx: GoalContext,
+): StrategyDefinition {
+  const canonical = normalizeRecommendationId(recommendationId);
+  if (!canonical) {
+    throw new Error(`Unknown recommendation id: ${recommendationId}`);
+  }
+  const tuning = resolveTuning(ctx);
+  const { programCount } = summarizeBalances(balances);
+  let def = getStrategyDefinition(canonical);
+  def = applyStrategyTuning(def, ctx, programCount, tuning.copy);
+  if (canonical === "MOST_EFFECTIVE") {
+    def = { ...def, difficulty: tuning.transferDifficulty };
+  }
+  return def;
+}
+
+function buildRecommendationForStrategy(
+  catalog: ValuationCatalog,
+  rewardBalances: RewardBalanceInput[],
+  ctx: GoalContext,
+  strategyId: CanonicalStrategyId,
+): Recommendation {
+  const { totalPoints, programCount } = summarizeBalances(rewardBalances);
+  const tuning = resolveTuning(ctx);
+
+  let def = getStrategyDefinition(strategyId);
+  def = applyStrategyTuning(def, ctx, programCount, tuning.copy);
+  if (strategyId === "MOST_EFFECTIVE") {
+    def = { ...def, difficulty: tuning.transferDifficulty };
+  }
+
+  const estimatedDollarValue = estimateStrategyValue(
+    catalog,
+    rewardBalances,
+    ctx,
+    def,
+  );
+
+  return {
+    id: strategyToRecommendationId(strategyId),
+    tagline: def.tagline,
+    title: def.title,
+    description: def.description,
+    estimatedDollarValue,
+    pointsUsed: totalPoints,
+    cpp: blendedCpp(totalPoints, estimatedDollarValue),
+    difficulty: def.difficulty,
+    redemptionType: def.redemptionType,
+  };
+}
+
 export function generateRecommendations(
   catalog: ValuationCatalog,
   rewardBalances: RewardBalanceInput[],
   ctx: GoalContext,
 ): Recommendation[] {
-  const { totalPoints, programCount } = summarizeBalances(rewardBalances);
-  const tuning = resolveTuning(ctx);
-
-  const transferValue = estimatedValueAcrossPrograms(
-    catalog,
-    rewardBalances,
-    ctx,
-    "transfer",
-  );
-  const portalValue = estimatedValueAcrossPrograms(
-    catalog,
-    rewardBalances,
-    ctx,
-    "portal",
-  );
-  const cashbackValue = estimatedValueAcrossPrograms(
-    catalog,
-    rewardBalances,
-    ctx,
-    "cashback",
-  );
-
-  const transferCpp = blendedCpp(totalPoints, transferValue);
-  const portalCpp = blendedCpp(totalPoints, portalValue);
-  const cashbackCpp = blendedCpp(totalPoints, cashbackValue);
-
-  const multiProgram = programCount > 1;
-  const multiSuffix = multiProgram
-    ? " Estimates add up each program separately. Points can’t be combined across issuers."
-    : "";
-
-  const recs: Recommendation[] = [
-    {
-      id: "BEST_VALUE",
-      label: "BEST_VALUE",
-      title: tuning.copy?.BEST_VALUE?.title ?? "Highest typical dollar value",
-      description:
-        tuning.copy?.BEST_VALUE?.description ??
-        `Partner transfers often stretch value the furthest.${multiSuffix}`,
-      estimatedDollarValue: transferValue,
-      pointsUsed: totalPoints,
-      cpp: transferCpp,
-      difficulty: tuning.transferDifficulty,
-      redemptionType: "transfer",
-    },
-    {
-      id: "EASIEST",
-      label: "EASIEST",
-      title: tuning.copy?.EASIEST?.title ?? "Simple cash back or credits",
-      description:
-        tuning.copy?.EASIEST?.description ??
-        `Redeem per issuer for cash back or statement credits.${multiSuffix}`,
-      estimatedDollarValue: cashbackValue,
-      pointsUsed: totalPoints,
-      cpp: cashbackCpp,
-      difficulty: "easy",
-      redemptionType: "cashback",
-    },
-    {
-      id: "BEST_FOR_TRAVEL",
-      label: "BEST_FOR_TRAVEL",
-      title: tuning.copy?.BEST_FOR_TRAVEL?.title ?? "Book travel in one place",
-      description:
-        tuning.copy?.BEST_FOR_TRAVEL?.description ??
-        `Use each bank’s travel portal with the points in that program.${multiSuffix}`,
-      estimatedDollarValue: portalValue,
-      pointsUsed: totalPoints,
-      cpp: portalCpp,
-      difficulty: "easy",
-      redemptionType: "portal",
-    },
+  const { primary, more } = dashboardStrategyIds(ctx);
+  return [
+    ...primary.map((id) =>
+      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
+    ),
+    ...more.map((id) =>
+      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
+    ),
   ];
+}
 
-  return tuning.order.map((rid) => recs.find((r) => r.id === rid)!);
+export function generateDashboardRecommendations(
+  catalog: ValuationCatalog,
+  rewardBalances: RewardBalanceInput[],
+  ctx: GoalContext,
+): Pick<DashboardSummary, "recommendations" | "moreRecommendations"> {
+  const { primary, more } = dashboardStrategyIds(ctx);
+  return {
+    recommendations: primary.map((id) =>
+      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
+    ),
+    moreRecommendations: more.map((id) =>
+      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
+    ),
+  };
 }
 
 export function valueRangeForBalances(
@@ -307,11 +401,13 @@ export function valueRangeForBalances(
   balances: RewardBalanceInput[],
   ctx: GoalContext,
 ): { min: number; max: number } {
-  const values = [
-    estimatedValueAcrossPrograms(catalog, balances, ctx, "cashback"),
-    estimatedValueAcrossPrograms(catalog, balances, ctx, "portal"),
-    estimatedValueAcrossPrograms(catalog, balances, ctx, "transfer"),
-  ];
+  const methods = comparisonMethodsForGoal(ctx);
+  const values = methods.map((method) =>
+    estimatedValueAcrossPrograms(catalog, balances, ctx, method),
+  );
+  if (values.length === 0) {
+    return { min: 0, max: 0 };
+  }
   return {
     min: Math.min(...values),
     max: Math.max(...values),
@@ -579,17 +675,68 @@ function buildOfferInstance(
   };
 }
 
+function programsForStrategy(
+  catalog: ValuationCatalog,
+  balances: RewardBalanceInput[],
+  strategy: StrategyDefinition,
+): ProgramInfo[] {
+  if (strategy.offerFilter === "primary_program_only") {
+    return [primaryProgram(balances)];
+  }
+
+  const methodPrograms = programsForMethod(
+    catalog,
+    balances,
+    strategy.redemptionType,
+  );
+  if (strategy.offerFilter !== "limited_time") {
+    return methodPrograms.length > 0
+      ? methodPrograms
+      : activeBalances(balances).map((b) => ({
+          programCode: b.programCode,
+          label: PROGRAM_LABELS[b.programCode] ?? b.programCode,
+          amount: b.amount,
+        }));
+  }
+
+  const templates = catalog.offers.filter(
+    (o) =>
+      strategy.offerMethods.includes(o.redemptionMethodCode) &&
+      isLimitedTimeTemplate(o),
+  );
+
+  return activeBalances(balances)
+    .filter((b) =>
+      templates.some(
+        (t) =>
+          !t.rewardProgramCode || t.rewardProgramCode === b.programCode,
+      ),
+    )
+    .sort((a, b) => b.amount - a.amount)
+    .map((b) => ({
+      programCode: b.programCode,
+      label: PROGRAM_LABELS[b.programCode] ?? b.programCode,
+      amount: b.amount,
+    }));
+}
+
 export function buildOffers(
   catalog: ValuationCatalog,
   rec: Recommendation,
   balances: RewardBalanceInput[],
   ctx: GoalContext,
 ): RedemptionOffer[] {
-  const templates = catalog.offers
-    .filter((o) => o.recommendationId === rec.id)
+  const strategy = resolveStrategyForRecommendation(rec.id, balances, ctx);
+
+  let templates = catalog.offers
+    .filter((o) => strategy.offerMethods.includes(o.redemptionMethodCode))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const programs = programsForMethod(catalog, balances, rec.redemptionType);
+  if (strategy.offerFilter === "limited_time") {
+    templates = templates.filter(isLimitedTimeTemplate);
+  }
+
+  const programs = programsForStrategy(catalog, balances, strategy);
   const offers: RedemptionOffer[] = [];
 
   for (const program of programs) {
@@ -716,30 +863,40 @@ function buildNextSteps(
 }
 
 const detailCopy: Record<
-  string,
+  CanonicalStrategyId,
   Pick<RecommendationDetail, "whyRecommended" | "effortExplanation" | "unlockExamples">
 > = {
-  BEST_VALUE: {
+  MOST_EFFECTIVE: {
     whyRecommended:
-      "This path usually turns each point into more dollars when you’re willing to spend a little time booking through partners.",
+      "This path usually turns each point into more dollars when you coordinate redemptions across the programs you already use.",
     effortExplanation:
-      "You may need to move points to an airline or hotel program, then book there. It’s a few extra steps, but the upside is often meaningful.",
+      "You may move points to airline or hotel partners per issuer. More steps than cash back, but the upside is often meaningful.",
     unlockExamples: [
       "A long weekend flight that would cost hundreds in cash",
       "A hotel stay where the room rate is high but points cover it well",
     ],
   },
-  EASIEST: {
+  LEAST_HASSLE: {
     whyRecommended:
-      "You get money back in the bank or on your statement without hunting for award space.",
+      "You focus on one rewards program so you are not juggling transfers across multiple banks.",
     effortExplanation:
-      "Mostly a few taps in your card’s app or website. Great when you want clarity over squeezing every penny.",
+      "Pick the issuer with your largest balance and follow a short redemption path there.",
     unlockExamples: [
-      "Paying down your balance or covering everyday purchases",
-      "A simple statement credit when you don’t want to think about travel",
+      "A single statement credit or portal booking",
+      "A straightforward transfer when you only need one partner program",
     ],
   },
-  BEST_FOR_TRAVEL: {
+  LIMITED_TIME: {
+    whyRecommended:
+      "Short-lived promos can beat everyday redemption rates if you act before they expire.",
+    effortExplanation:
+      "Check logged-in pricing, then move quickly. These windows change often.",
+    unlockExamples: [
+      "A promo award fare that is cheaper than usual",
+      "A portal sale that lines up with dates you can travel",
+    ],
+  },
+  TRAVEL_PORTAL: {
     whyRecommended:
       "You stay inside your bank’s travel tools, so it’s easier than moving points around while still beating plain cash back.",
     effortExplanation:
@@ -747,6 +904,16 @@ const detailCopy: Record<
     unlockExamples: [
       "Round-trip flights for a trip you already planned",
       "A hotel night booked in the same checkout flow as flights",
+    ],
+  },
+  SIMPLE_CASH: {
+    whyRecommended:
+      "You get money back in the bank or on your statement without hunting for award space.",
+    effortExplanation:
+      "Mostly a few taps in your card’s app or website. Great when you want clarity over squeezing every penny.",
+    unlockExamples: [
+      "Paying down your balance or covering everyday purchases",
+      "A simple statement credit when you don’t want to think about travel",
     ],
   },
 };
@@ -757,11 +924,11 @@ export function listOffersForRecommendation(
   rewardBalances: RewardBalanceInput[],
   ctx: GoalContext,
 ): RedemptionOffer[] {
-  const totalPoints = Math.round(
-    rewardBalances.reduce((s, b) => s + Math.max(0, b.amount), 0),
-  );
+  const canonical = normalizeRecommendationId(recommendationId);
   const rec = generateRecommendations(catalog, rewardBalances, ctx).find(
-    (r) => r.id === recommendationId,
+    (r) =>
+      r.id === recommendationId ||
+      (canonical !== null && r.id === strategyToRecommendationId(canonical)),
   );
   if (!rec) return [];
   return buildOffers(catalog, rec, rewardBalances, ctx);
@@ -778,7 +945,11 @@ export function resolveSavedOffers(
   const recById = new Map(recs.map((r) => [r.id, r]));
 
   return refs.map((ref) => {
-    const recId = ref.recommendationId as Recommendation["id"];
+    const canonical = normalizeRecommendationId(ref.recommendationId);
+    const recId =
+      canonical !== null
+        ? strategyToRecommendationId(canonical)
+        : (ref.recommendationId as Recommendation["id"]);
     const rec = recById.get(recId);
     const offers = listOffersForRecommendation(
       catalog,
@@ -814,7 +985,9 @@ export function buildRecommendationDetail(
   rewardBalances: RewardBalanceInput[],
   ctx: GoalContext,
 ): RecommendationDetail | null {
-  const extra = detailCopy[rec.id];
+  const canonical = normalizeRecommendationId(rec.id);
+  if (!canonical) return null;
+  const extra = detailCopy[canonical];
   if (!extra) return null;
 
   const totalPoints = Math.round(
@@ -858,62 +1031,75 @@ export function buildDashboardSummary(
     ctx,
   );
 
-  const recommendations = generateRecommendations(catalog, rewardBalances, ctx);
+  const { recommendations, moreRecommendations } = generateDashboardRecommendations(
+    catalog,
+    rewardBalances,
+    ctx,
+  );
 
+  const comparisonLabels: Record<
+    RedemptionMethodCode,
+    { label: string; subtitle: string }
+  > = {
+    cashback: {
+      label: "Cash back",
+      subtitle: "Straightforward, predictable",
+    },
+    portal: {
+      label: "Travel site",
+      subtitle: "Book flights and hotels in one place",
+    },
+    transfer: {
+      label: "Travel partners",
+      subtitle: "Often the highest dollar value",
+    },
+  };
+
+  const comparisonMethods = comparisonMethodsForGoal(ctx);
+  const comparison: ValueComparisonRow[] = comparisonMethods.map((method) => ({
+    id: method,
+    label: comparisonLabels[method].label,
+    estimatedDollars: estimatedValueAcrossPrograms(
+      catalog,
+      rewardBalances,
+      ctx,
+      method,
+    ),
+    subtitle: comparisonLabels[method].subtitle,
+  }));
+
+  const primary = recommendations[0];
+  const best = primary?.estimatedDollarValue ?? 0;
   const cashbackD = estimatedValueAcrossPrograms(
     catalog,
     rewardBalances,
     ctx,
     "cashback",
   );
-  const portalD = estimatedValueAcrossPrograms(
-    catalog,
-    rewardBalances,
-    ctx,
-    "portal",
-  );
-  const transferD =
-    recommendations.find((r) => r.id === "BEST_VALUE")?.estimatedDollarValue ??
-    estimatedValueAcrossPrograms(catalog, rewardBalances, ctx, "transfer");
-
-  const comparison: ValueComparisonRow[] = [
-    {
-      id: "cashback",
-      label: "Cash back",
-      estimatedDollars: cashbackD,
-      subtitle: "Straightforward, predictable",
-    },
-    {
-      id: "portal",
-      label: "Travel site",
-      estimatedDollars: portalD,
-      subtitle: "Book flights and hotels in one place",
-    },
-    {
-      id: "transfer",
-      label: "Travel partners",
-      estimatedDollars: transferD,
-      subtitle: "Often the highest dollar value",
-    },
-  ];
-
-  const best = transferD;
   const uplift =
     cashbackD > 0 ? Math.round(((best - cashbackD) / cashbackD) * 100) : 0;
+
   const insightMessage =
     totalPoints === 0
       ? "Add your balances to see personalized estimates."
-      : ctx.goalPreference === "CUSTOM"
-        ? "Suggestions are tuned to your custom focus. Save to refresh rankings."
-        : uplift > 0
-          ? `Your strongest option could be worth about ${uplift}% more than simple cash back.`
-          : "Compare options below to see what fits your style.";
+      : ctx.goalPreference === "CASHLIKE"
+        ? "Options focus on cash back and credits that match a cash-like goal."
+        : ctx.goalPreference === "KEEP_IT_SIMPLE"
+          ? "These paths prioritize low effort over squeezing every cent from partner transfers."
+          : ctx.goalPreference === "TRAVEL_FOCUSED"
+            ? "Travel portals and partner transfers are featured first for your trip goal."
+            : ctx.goalPreference === "CUSTOM"
+              ? "Suggestions are tuned to your custom focus. Save to refresh rankings."
+              : uplift > 0
+                ? `Your top path could be worth about ${uplift}% more than simple cash back.`
+                : "Compare options below to see what fits your style.";
 
   return {
     totalPoints,
     valueRangeMin,
     valueRangeMax,
     recommendations,
+    moreRecommendations,
     comparison,
     insightMessage,
   };

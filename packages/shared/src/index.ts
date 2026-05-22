@@ -219,6 +219,12 @@ export const updateUserProfileInputSchema = z
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileInputSchema>;
 
 export const recommendationIdSchema = z.enum([
+  "MOST_EFFECTIVE",
+  "LEAST_HASSLE",
+  "LIMITED_TIME",
+  "TRAVEL_PORTAL",
+  "SIMPLE_CASH",
+  /** @deprecated Legacy ids still accepted for saved offers and old links */
   "BEST_VALUE",
   "EASIEST",
   "BEST_FOR_TRAVEL",

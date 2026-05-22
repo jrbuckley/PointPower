@@ -19,14 +19,9 @@ export type {
 
 export type RecommendationId = SharedRecommendationId;
 
-export type RecommendationLabel =
-  | "BEST_VALUE"
-  | "EASIEST"
-  | "BEST_FOR_TRAVEL";
-
 export type Recommendation = {
   id: RecommendationId;
-  label: RecommendationLabel;
+  tagline: string;
   title: string;
   description: string;
   estimatedDollarValue: number;
@@ -48,6 +43,7 @@ export type DashboardSummary = {
   valueRangeMin: number;
   valueRangeMax: number;
   recommendations: Recommendation[];
+  moreRecommendations: Recommendation[];
   comparison: ValueComparisonRow[];
   insightMessage: string;
 };

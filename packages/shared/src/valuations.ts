@@ -22,6 +22,11 @@ const customGoalCodeSchema = z.enum([
 ]);
 
 const recommendationIdSchema = z.enum([
+  "MOST_EFFECTIVE",
+  "LEAST_HASSLE",
+  "LIMITED_TIME",
+  "TRAVEL_PORTAL",
+  "SIMPLE_CASH",
   "BEST_VALUE",
   "EASIEST",
   "BEST_FOR_TRAVEL",
@@ -50,7 +55,6 @@ export type ValuationRule = z.infer<typeof valuationRuleSchema>;
 
 export const redemptionOfferTemplateSchema = z.object({
   offerKey: z.string(),
-  recommendationId: recommendationIdSchema,
   redemptionMethodCode: redemptionMethodCodeSchema,
   /** When null, the offer is generated once per user program that supports this method. */
   rewardProgramCode: z.string().nullable(),

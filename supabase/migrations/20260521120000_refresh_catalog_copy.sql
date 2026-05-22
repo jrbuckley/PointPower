@@ -44,7 +44,6 @@ set
 
 insert into public.redemption_offers (
   offer_key,
-  recommendation_id,
   redemption_method_code,
   title,
   partner_name,
@@ -60,7 +59,6 @@ insert into public.redemption_offers (
 values
   (
     'offer-united-saver',
-    'BEST_VALUE',
     'transfer',
     'United Saver, U.S. to Europe',
     'United MileagePlus',
@@ -75,7 +73,6 @@ values
   ),
   (
     'offer-hyatt-premium',
-    'BEST_VALUE',
     'transfer',
     'Hyatt premium category, 3 nights',
     'World of Hyatt',
@@ -90,7 +87,6 @@ values
   ),
   (
     'offer-air-france-promo',
-    'BEST_VALUE',
     'transfer',
     'Flying Blue promo award',
     'Air France / KLM',
@@ -105,7 +101,6 @@ values
   ),
   (
     'offer-portal-economy-rt',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Round-trip economy, bank travel portal',
     'Issuer travel portal',
@@ -120,7 +115,6 @@ values
   ),
   (
     'offer-portal-hotel-bundle',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Flight + hotel bundle',
     'Issuer travel portal',
@@ -135,7 +129,6 @@ values
   ),
   (
     'offer-portal-lastminute',
-    'BEST_FOR_TRAVEL',
     'portal',
     'Last-minute weekend getaway',
     'Issuer travel portal',
@@ -150,7 +143,6 @@ values
   ),
   (
     'offer-statement-500',
-    'EASIEST',
     'cashback',
     '$500 statement credit',
     'Card issuer',
@@ -165,7 +157,6 @@ values
   ),
   (
     'offer-cash-deposit',
-    'EASIEST',
     'cashback',
     'Deposit to linked bank account',
     'Card issuer',
@@ -180,7 +171,6 @@ values
   ),
   (
     'offer-shop-with-points',
-    'EASIEST',
     'cashback',
     'Shop with points, everyday purchases',
     'Card issuer',
@@ -195,7 +185,6 @@ values
   )
 on conflict (offer_key) do update
 set
-  recommendation_id = excluded.recommendation_id,
   redemption_method_code = excluded.redemption_method_code,
   title = excluded.title,
   partner_name = excluded.partner_name,
