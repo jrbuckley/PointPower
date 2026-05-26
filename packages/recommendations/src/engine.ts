@@ -8,14 +8,25 @@ import { resolveTuning } from "./customGoalTuning.js";
 import {
   applyStrategyTuning,
   comparisonMethodsForGoal,
-  dashboardStrategyIds,
   getStrategyDefinition,
   isLimitedTimeTemplate,
   normalizeRecommendationId,
+  resolveStrategyOrder,
   strategyToRecommendationId,
   type CanonicalStrategyId,
   type StrategyDefinition,
 } from "./strategies.js";
+import {
+  estimatedTransferValueDirectPhase1,
+  bestEffectiveCppDirectTransferPhase1,
+} from "./valuation/phase1DirectTransfer.js";
+import { goalRankingWeights } from "./valuation/phase4Ranking.js";
+import { transferPathExplanationForPortfolio } from "./valuation/phase4TransferPathExplanation.js";
+import {
+  dashboardStrategyIdsRanked,
+  rankStrategiesForGoal,
+  type RankedStrategy,
+} from "./valuation/strategyRanking.js";
 import type {
   DashboardSummary,
   GoalContext,
@@ -163,6 +174,13 @@ function estimatedValueAcrossPrograms(
   ctx: GoalContext,
   method: RedemptionMethodCode,
 ): number {
+  if (method === "transfer") {
+    return estimatedTransferValueDirectPhase1(
+      catalog,
+      activeBalances(balances),
+      ctx,
+    );
+  }
   return roundMoney(
     activeBalances(balances).reduce(
       (sum, b) =>
@@ -239,6 +257,12 @@ function estimatedValuePrimaryProgram(
   method: RedemptionMethodCode,
 ): number {
   const primary = primaryProgram(balances);
+  if (method === "transfer") {
+    return dollarsFor(
+      primary.amount,
+      bestEffectiveCppDirectTransferPhase1(catalog, primary.programCode, ctx),
+    );
+  }
   return dollarsFor(
     primary.amount,
     effectiveCppForProgram(catalog, primary.programCode, ctx, method),
@@ -364,20 +388,26 @@ function buildRecommendationForStrategy(
   };
 }
 
+function buildRankedStrategies(
+  catalog: ValuationCatalog,
+  rewardBalances: RewardBalanceInput[],
+  ctx: GoalContext,
+): RankedStrategy[] {
+  const order = resolveStrategyOrder(ctx);
+  const built = order.map((id) =>
+    buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
+  );
+  return rankStrategiesForGoal(built, ctx);
+}
+
 export function generateRecommendations(
   catalog: ValuationCatalog,
   rewardBalances: RewardBalanceInput[],
   ctx: GoalContext,
 ): Recommendation[] {
-  const { primary, more } = dashboardStrategyIds(ctx);
-  return [
-    ...primary.map((id) =>
-      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
-    ),
-    ...more.map((id) =>
-      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
-    ),
-  ];
+  return buildRankedStrategies(catalog, rewardBalances, ctx).map(
+    (r) => r.recommendation,
+  );
 }
 
 export function generateDashboardRecommendations(
@@ -385,14 +415,13 @@ export function generateDashboardRecommendations(
   rewardBalances: RewardBalanceInput[],
   ctx: GoalContext,
 ): Pick<DashboardSummary, "recommendations" | "moreRecommendations"> {
-  const { primary, more } = dashboardStrategyIds(ctx);
+  const ranked = buildRankedStrategies(catalog, rewardBalances, ctx);
+  const { primary, more } = dashboardStrategyIdsRanked(ranked);
+  const byId = new Map(ranked.map((r) => [r.strategyId, r.recommendation]));
+
   return {
-    recommendations: primary.map((id) =>
-      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
-    ),
-    moreRecommendations: more.map((id) =>
-      buildRecommendationForStrategy(catalog, rewardBalances, ctx, id),
-    ),
+    recommendations: primary.map((id) => byId.get(id)!),
+    moreRecommendations: more.map((id) => byId.get(id)!),
   };
 }
 
@@ -795,6 +824,7 @@ function buildNextSteps(
   rec: Recommendation,
   goalFit: GoalFitSummary,
   offers: RedemptionOffer[],
+  transferPath?: import("./types.js").TransferPathExplanation,
 ): RecommendationStep[] {
   const multi = goalFit.programCount > 1;
 
@@ -803,25 +833,37 @@ function buildNextSteps(
       .filter((o) => o.coverageStatus !== "stretch")
       .sort((a, b) => a.pointsRequired - b.pointsRequired)[0];
 
-    return [
-      {
+    const steps: RecommendationStep[] = [];
+
+    if (transferPath && transferPath.traceLines.length > 0) {
+      steps.push({
         order: 1,
-        title: "Search partner award space",
-        detail: "Find flights or hotels before moving points. Transfers are usually irreversible.",
-      },
-      {
-        order: 2,
-        title: "Transfer only what you need",
-        detail: smallestFit
-          ? `Example: ${smallestFit.title} needs ${smallestFit.pointsRequired.toLocaleString()} ${smallestFit.programLabel} pts. Transfer 1:1, then book within 24 hours.`
+        title: "Follow the strongest modeled transfer path",
+        detail: transferPath.traceLines.join(" · "),
+      });
+    }
+
+    steps.push({
+      order: steps.length + 1,
+      title: "Search partner award space",
+      detail: "Find flights or hotels before moving points. Transfers are usually irreversible.",
+    });
+    steps.push({
+      order: steps.length + 1,
+      title: "Transfer only what you need",
+      detail: smallestFit
+        ? `Example: ${smallestFit.title} needs ${smallestFit.pointsRequired.toLocaleString()} ${smallestFit.programLabel} pts. Transfer 1:1, then book within 24 hours.`
+        : transferPath
+          ? `Move points along the path above, then book within 24 hours.`
           : "Move points 1:1 to the partner, then book within 24 hours.",
-      },
-      {
-        order: 3,
-        title: "Book and save confirmation",
-        detail: "Screenshot taxes/fees and cancellation rules.",
-      },
-    ];
+    });
+    steps.push({
+      order: steps.length + 1,
+      title: "Book and save confirmation",
+      detail: "Screenshot taxes/fees and cancellation rules.",
+    });
+
+    return steps;
   }
 
   if (rec.redemptionType === "portal") {
@@ -979,6 +1021,44 @@ export function resolveSavedOffers(
   });
 }
 
+function buildRankingRationale(
+  rec: Recommendation,
+  ranked: RankedStrategy[],
+  ctx: GoalContext,
+): string | undefined {
+  const entry = ranked.find((r) => r.recommendation.id === rec.id);
+  if (!entry) return undefined;
+
+  const position = ranked.findIndex((r) => r.recommendation.id === rec.id);
+  if (position < 0) return undefined;
+
+  const top = ranked[0];
+  if (!top) return undefined;
+
+  const weights = goalRankingWeights(ctx);
+  const valueFirst = weights.value >= 0.6;
+
+  if (position === 0) {
+    if (valueFirst && entry.valueNorm >= 0.99 && entry.easeNorm < 0.55) {
+      return "Ranked first for your goal: highest estimated value among these paths, with more steps than simpler options.";
+    }
+    if (!valueFirst && entry.easeNorm >= 0.85) {
+      return "Ranked first for your goal: lowest hassle among these options while still meeting your value needs.";
+    }
+    return "Ranked first for your goal based on estimated value and how much effort each path takes.";
+  }
+
+  if (
+    valueFirst &&
+    entry.easeNorm > top.easeNorm + 0.2 &&
+    entry.valueNorm < top.valueNorm - 0.12
+  ) {
+    return "Shown lower because another path scores higher on estimated value for your goal.";
+  }
+
+  return undefined;
+}
+
 export function buildRecommendationDetail(
   catalog: ValuationCatalog,
   rec: Recommendation,
@@ -990,13 +1070,20 @@ export function buildRecommendationDetail(
   const extra = detailCopy[canonical];
   if (!extra) return null;
 
-  const totalPoints = Math.round(
-    rewardBalances.reduce((s, b) => s + Math.max(0, b.amount), 0),
-  );
+  const ranked = buildRankedStrategies(catalog, rewardBalances, ctx);
   const target = goalTargetForContext(catalog, ctx, rec);
   const goalFit = buildGoalFit(rewardBalances, target, rec);
   const offers = buildOffers(catalog, rec, rewardBalances, ctx);
-  const nextSteps = buildNextSteps(rec, goalFit, offers);
+
+  const transferPath =
+    rec.redemptionType === "transfer" ||
+    canonical === "MOST_EFFECTIVE" ||
+    canonical === "LIMITED_TIME"
+      ? (transferPathExplanationForPortfolio(catalog, rewardBalances) ?? undefined)
+      : undefined;
+
+  const nextSteps = buildNextSteps(rec, goalFit, offers, transferPath);
+  const rankingRationale = buildRankingRationale(rec, ranked, ctx);
 
   const cashbackValue = estimatedValueAcrossPrograms(
     catalog,
@@ -1013,6 +1100,8 @@ export function buildRecommendationDetail(
     goalFit,
     offers,
     nextSteps,
+    transferPath: transferPath ?? undefined,
+    rankingRationale,
   };
 }
 
@@ -1031,11 +1120,11 @@ export function buildDashboardSummary(
     ctx,
   );
 
-  const { recommendations, moreRecommendations } = generateDashboardRecommendations(
-    catalog,
-    rewardBalances,
-    ctx,
-  );
+  const ranked = buildRankedStrategies(catalog, rewardBalances, ctx);
+  const { primary: primaryIds, more: moreIds } = dashboardStrategyIdsRanked(ranked);
+  const byId = new Map(ranked.map((r) => [r.strategyId, r.recommendation]));
+  const recommendations = primaryIds.map((id) => byId.get(id)!);
+  const moreRecommendations = moreIds.map((id) => byId.get(id)!);
 
   const comparisonLabels: Record<
     RedemptionMethodCode,
@@ -1068,8 +1157,9 @@ export function buildDashboardSummary(
     subtitle: comparisonLabels[method].subtitle,
   }));
 
-  const primary = recommendations[0];
-  const best = primary?.estimatedDollarValue ?? 0;
+  const topRecommendation = recommendations[0];
+  const topRanked = ranked[0];
+  const best = topRecommendation?.estimatedDollarValue ?? 0;
   const cashbackD = estimatedValueAcrossPrograms(
     catalog,
     rewardBalances,
@@ -1079,20 +1169,28 @@ export function buildDashboardSummary(
   const uplift =
     cashbackD > 0 ? Math.round(((best - cashbackD) / cashbackD) * 100) : 0;
 
+  const topTagline = topRecommendation?.tagline?.toLowerCase() ?? "this path";
+  const rankingNote =
+    topRanked &&
+    topRecommendation &&
+    topRanked.recommendation.id === topRecommendation.id
+      ? ` Ranked first for your goal (${topTagline}).`
+      : "";
+
   const insightMessage =
     totalPoints === 0
       ? "Add your balances to see personalized estimates."
       : ctx.goalPreference === "CASHLIKE"
-        ? "Options focus on cash back and credits that match a cash-like goal."
+        ? `Options are ordered for cash-like redemptions.${rankingNote}`
         : ctx.goalPreference === "KEEP_IT_SIMPLE"
-          ? "These paths prioritize low effort over squeezing every cent from partner transfers."
+          ? `Paths are ordered for low effort first.${rankingNote}`
           : ctx.goalPreference === "TRAVEL_FOCUSED"
-            ? "Travel portals and partner transfers are featured first for your trip goal."
+            ? `Travel options are ranked for your trip goal.${rankingNote}`
             : ctx.goalPreference === "CUSTOM"
-              ? "Suggestions are tuned to your custom focus. Save to refresh rankings."
+              ? `Suggestions are ranked for your custom focus.${rankingNote}`
               : uplift > 0
-                ? `Your top path could be worth about ${uplift}% more than simple cash back.`
-                : "Compare options below to see what fits your style.";
+                ? `Your top path could be worth about ${uplift}% more than simple cash back.${rankingNote}`
+                : `Compare options below.${rankingNote}`;
 
   return {
     totalPoints,

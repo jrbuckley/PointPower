@@ -15,8 +15,30 @@ import { runRecommendationAction } from "../../lib/recommendationActions";
 import { toggleSaveOffer } from "../../lib/savedOffersService";
 import { useAppStore } from "../../store/appStore";
 import { useSavedOffersStore } from "../../store/savedOffersStore";
-import type { RedemptionOffer } from "../../types/models";
+import type { RedemptionOffer, TransferPathExplanation } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
+
+function TransferPathHero({ path }: { path: TransferPathExplanation }) {
+  const lines = path.traceLines;
+  const prior = lines.length > 1 ? lines.slice(0, -1) : [];
+  const finalLine = lines.length > 0 ? lines[lines.length - 1] : null;
+
+  return (
+    <View style={styles.pathHero} accessibilityRole="summary">
+      <Text style={styles.pathHeroLabel}>Best modeled transfer path</Text>
+      {prior.map((line) => (
+        <Text key={line} style={styles.pathHeroTracePrior}>
+          {line}
+        </Text>
+      ))}
+      {finalLine ? <Text style={styles.pathHeroTrace}>{finalLine}</Text> : null}
+      <Text style={styles.pathHeroMeta}>
+        {path.modeledIssuerCpp.toFixed(2)}¢ per point modeled · verify live award space
+        before transferring
+      </Text>
+    </View>
+  );
+}
 
 function groupOffersByProgram(
   offers: RedemptionOffer[],
@@ -177,6 +199,10 @@ export default function RecommendationDetailScreen() {
           </Text>
           <DifficultyBadge difficulty={data.difficulty} />
         </View>
+        {data.transferPath ? <TransferPathHero path={data.transferPath} /> : null}
+        {data.rankingRationale ? (
+          <Text style={styles.rankingNote}>{data.rankingRationale}</Text>
+        ) : null}
       </View>
 
       <View style={styles.offersBlock}>
@@ -292,8 +318,42 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    marginBottom: 12,
-    gap: 8,
+    marginBottom: 16,
+    gap: 10,
+  },
+  pathHero: {
+    backgroundColor: "#eff6ff",
+    borderLeftWidth: 3,
+    borderLeftColor: "#2563eb",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  pathHeroLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  pathHeroTrace: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1e3a8a",
+    lineHeight: 21,
+  },
+  pathHeroTracePrior: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3b82f6",
+    lineHeight: 18,
+  },
+  pathHeroMeta: {
+    fontSize: 12,
+    color: "#64748b",
+    lineHeight: 17,
+    marginTop: 2,
   },
   headerMeta: {
     flexDirection: "row",
@@ -338,6 +398,12 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 6,
     marginTop: 2,
+  },
+  rankingNote: {
+    fontSize: 13,
+    color: "#4b5563",
+    lineHeight: 18,
+    fontStyle: "italic",
   },
   stepsCard: {
     marginBottom: 16,

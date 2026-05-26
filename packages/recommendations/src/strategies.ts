@@ -187,6 +187,7 @@ export function resolveStrategyOrder(ctx: GoalContext): CanonicalStrategyId[] {
 /** Max cards shown before “See more”. Goals with fewer strategies show all of them. */
 export const DASHBOARD_PRIMARY_LIMIT = 3;
 
+/** Editorial order split; prefer `dashboardStrategyIdsRanked` after Phase 4 scoring. */
 export function dashboardStrategyIds(ctx: GoalContext): {
   primary: CanonicalStrategyId[];
   more: CanonicalStrategyId[];

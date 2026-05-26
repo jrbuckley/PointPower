@@ -101,6 +101,16 @@ export type RecommendationStep = {
   detail?: string;
 };
 
+export type TransferPathExplanation = {
+  headline: string;
+  detail: string;
+  traceLines: string[];
+  issuerProgramCode: string;
+  finalPartnerCode: string;
+  transferHops: number;
+  modeledIssuerCpp: number;
+};
+
 export type RecommendationDetail = Recommendation & {
   whyRecommended: string;
   vsCashbackExtraDollars: number;
@@ -109,4 +119,6 @@ export type RecommendationDetail = Recommendation & {
   goalFit: GoalFitSummary;
   offers: RedemptionOffer[];
   nextSteps: RecommendationStep[];
+  transferPath?: TransferPathExplanation;
+  rankingRationale?: string;
 };

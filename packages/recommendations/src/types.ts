@@ -87,6 +87,16 @@ export type RecommendationStep = {
   detail?: string;
 };
 
+export type TransferPathExplanation = {
+  headline: string;
+  detail: string;
+  traceLines: string[];
+  issuerProgramCode: string;
+  finalPartnerCode: string;
+  transferHops: number;
+  modeledIssuerCpp: number;
+};
+
 export type RecommendationDetail = Recommendation & {
   whyRecommended: string;
   vsCashbackExtraDollars: number;
@@ -95,6 +105,10 @@ export type RecommendationDetail = Recommendation & {
   goalFit: GoalFitSummary;
   offers: RedemptionOffer[];
   nextSteps: RecommendationStep[];
+  /** Present for transfer-heavy strategies when a modeled path exists in catalog. */
+  transferPath?: TransferPathExplanation;
+  /** Why this strategy appears in its dashboard position (Phase 4 ranking). */
+  rankingRationale?: string;
 };
 
 export type ValueComparisonRow = {
