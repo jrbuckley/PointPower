@@ -16,40 +16,39 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
+Fresh local database (reapplies all migrations; wipes auth + app data):
+
+```bash
+supabase db reset --linked
+```
+
+## Migration order
+
+1. `20260514032600_initial_schema.sql` — enums, tables, indexes, RLS (users, rewards, valuation graph, catalog, saved offers, account deletion)
+2. `20260514032700_seed_rewards_reference_data.sql` — reward programs and redemption methods
+3. `20260514032800_seed_catalog.sql` — transfer partners, valuation rules, goal targets, redemption products, offers
+
 ## New changes
 
 Add a new file under `migrations/` with a timestamp prefix, e.g. `20260520120000_description.sql`, then run `supabase db push` again.
 
-## Migration order
+For **catalog copy or seed tweaks** on databases that already ran migrations, prefer a new migration with `INSERT ... ON CONFLICT DO UPDATE` rather than editing files above (already-applied migrations are not re-run).
 
-1. `20260514032600_initial_rewards_schema.sql`
-2. `20260514032700_seed_rewards_reference_data.sql`
-3. `20260515140000_account_deletion.sql`
-4. `20260516120000_custom_goals.sql`
-5. `20260517120000_saved_offers.sql`
-6. `20260518120000_seed_valuations_and_offers.sql`
-7. `20260519120000_offer_program_code.sql`
-8. `20260521120000_refresh_catalog_copy.sql`
-9. `20260522120000_drop_offer_recommendation_bucket.sql`
-10. `20260523140000_redemption_products.sql` (Phase 2 valuation leaves + `redemption_offers.redemption_product_key`)
-11. `20260524120000_partner_transfer_graph.sql` (Phase 3 partner→partner edges + transfer bonuses)
+## Existing projects with old migration history
 
-## Updating seed data after the DB already exists
+If a linked project previously applied the older multi-file migration chain, squashing to these three files will **not** match `supabase_migrations.schema_migrations`. Options:
 
-Editing an old migration file does nothing on a database that already ran it. Use one of these:
+1. **Dev / disposable:** `supabase db reset --linked` (or reset in the dashboard) and push again.
+2. **Production:** repair migration history with Supabase support/docs, or add only *new* forward migrations without renaming applied versions.
 
-1. **Preferred:** add a new migration with `INSERT ... ON CONFLICT DO UPDATE` (see `20260521120000_refresh_catalog_copy.sql`), then `supabase db push`.
-2. **Quick test:** paste the same SQL into the Supabase SQL Editor and run once.
-3. **Dev only:** `supabase db reset --linked` wipes auth + app data and reapplies all migrations.
-
-Recommendation headlines and goal-fit copy come from the API engine, not these tables. Offers are keyed by `redemption_method_code` (transfer / portal / cashback); dashboard strategies filter offers in app code. `saved_offers.recommendation_id` stores the strategy id (e.g. `MOST_EFFECTIVE`), not a catalog bucket.
-
-## Valuation engine (phased rollout)
+## Valuation engine
 
 Transfers are modeled in `@points-exchange/recommendations` against the fetched **valuation catalog**:
 
-- **Phase 2:** `redemption_products` table + catalog `redemptionProducts`; terminal partner CPP from named products and rules.
-- **Phase 3:** `partner_transfer_edges` + `transfer_bonuses`; bounded multi-hop path search (up to 3 transfer edges) with **ratio + bonus math** on issuer→partner and partner→partner hops.
-- **Phase 4 (current):** Dashboard strategies are **re-ranked** by goal-weighted score (estimated $ vs difficulty). Transfer detail screens show the **modeled transfer path** trace and optional ranking rationale. Editorial strategy lists remain the tie-breaker.
+- **Products:** `redemption_products` + `redemption_offers.redemption_product_key` for concrete points → cash leaves.
+- **Graph:** `reward_program_transfer_partners`, `partner_transfer_edges`, `transfer_bonuses` for multi-hop path search.
+- **Ranking:** goal-weighted strategy order and transfer-path explainability live in the recommendations package, not in SQL.
+
+Offers are keyed by `redemption_method_code` (transfer / portal / cashback). `saved_offers.recommendation_id` stores the strategy id (e.g. `MOST_EFFECTIVE`), not a legacy bucket column.
 
 Email templates for Auth live in `email-templates/`.

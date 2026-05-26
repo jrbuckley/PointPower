@@ -1,65 +1,4 @@
--- Goal targets, static offer catalog, and valuation reference data.
-
-create table public.goal_redemption_targets (
-  id uuid primary key default gen_random_uuid(),
-  goal_preference public.goal_preference,
-  custom_goal_code public.custom_goal_code,
-  label_suffix text not null,
-  points_required integer not null check (points_required > 0),
-  cash_value_usd numeric(12, 2) not null check (cash_value_usd > 0),
-  constraint goal_redemption_targets_goal_key check (
-    (
-      goal_preference is not null
-      and goal_preference <> 'CUSTOM'
-      and custom_goal_code is null
-    )
-    or (
-      goal_preference = 'CUSTOM'
-      and custom_goal_code is not null
-    )
-  )
-);
-
-create unique index goal_redemption_targets_preset_unique_idx
-on public.goal_redemption_targets(goal_preference)
-where custom_goal_code is null;
-
-create unique index goal_redemption_targets_custom_unique_idx
-on public.goal_redemption_targets(custom_goal_code)
-where custom_goal_code is not null;
-
-create table public.redemption_offers (
-  id uuid primary key default gen_random_uuid(),
-  offer_key text not null unique,
-  redemption_method_code text not null references public.redemption_methods(code),
-  title text not null,
-  partner_name text not null,
-  points_required integer not null check (points_required > 0),
-  estimated_cash_value_usd numeric(12, 2) not null check (estimated_cash_value_usd > 0),
-  expires_in_days integer not null default 30 check (expires_in_days > 0),
-  availability_note text not null,
-  highlight_label text,
-  highlight_goal_preference public.goal_preference,
-  highlight_custom_goal_code public.custom_goal_code,
-  sort_order integer not null default 0,
-  is_active boolean not null default true
-);
-
-create index redemption_offers_method_idx
-on public.redemption_offers(redemption_method_code);
-
-alter table public.goal_redemption_targets enable row level security;
-alter table public.redemption_offers enable row level security;
-
-create policy "Goal redemption targets are readable"
-on public.goal_redemption_targets
-for select
-using (true);
-
-create policy "Redemption offers are readable"
-on public.redemption_offers
-for select
-using (true);
+-- Valuation catalog, transfer graph reference data, offers, and goal targets.
 
 -- Transfer partners
 insert into public.transfer_partners (code, name, type)
@@ -70,7 +9,7 @@ values
 on conflict (code) do update
 set name = excluded.name, type = excluded.type;
 
--- Program ↔ partner transfer ratios (1:1 baseline)
+-- Issuer → partner edges (1:1 baseline)
 insert into public.reward_program_transfer_partners (
   reward_program_id,
   transfer_partner_id,
@@ -83,7 +22,7 @@ cross join public.transfer_partners tp
 where rp.code in ('chase_ur', 'amex_mr', 'capital_one_miles', 'citi_ty')
 on conflict (reward_program_id, transfer_partner_id) do nothing;
 
--- Valuation rules: cents-per-point (cpp) by program and redemption method
+-- Valuation rules (per program × method)
 insert into public.valuation_rules (
   reward_program_id,
   redemption_method_id,
@@ -123,7 +62,7 @@ join public.reward_programs rp on rp.code = v.program_code
 join public.redemption_methods rm on rm.code = v.method_code
 on conflict do nothing;
 
--- Partner-specific transfer valuations (used for offer-level estimates)
+-- Partner-specific transfer valuations
 insert into public.valuation_rules (
   reward_program_id,
   redemption_method_id,
@@ -157,7 +96,7 @@ join public.redemption_methods rm on rm.code = 'transfer'
 join public.transfer_partners tp on tp.code = v.partner_code
 on conflict do nothing;
 
--- Goal redemption targets (custom + preset baselines)
+-- Goal redemption targets
 insert into public.goal_redemption_targets (
   goal_preference,
   custom_goal_code,
@@ -200,10 +139,89 @@ set
   points_required = excluded.points_required,
   cash_value_usd = excluded.cash_value_usd;
 
--- Static offer catalog (resolved at read time with user balances)
+-- Redemption products (valuation leaves)
+insert into public.redemption_products (
+  product_key,
+  redemption_method_id,
+  partner_id,
+  title,
+  points_required,
+  cash_value_usd,
+  highlight_goal_preference,
+  highlight_custom_goal_code,
+  sort_order
+)
+select
+  v.product_key,
+  rm.id,
+  tp.id,
+  v.title,
+  v.points_required,
+  v.cash_value_usd,
+  v.highlight_goal_preference,
+  v.highlight_custom_goal_code,
+  v.sort_order
+from (
+  values
+    (
+      'product-united-saver-europe',
+      'transfer',
+      'united',
+      'United Saver, U.S. to Europe',
+      60000,
+      1150.00,
+      null::public.goal_preference,
+      'INTERNATIONAL_FLIGHTS'::public.custom_goal_code,
+      1
+    ),
+    (
+      'product-hyatt-premium-3n',
+      'transfer',
+      'hyatt',
+      'Hyatt premium category, 3 nights',
+      75000,
+      1400.00,
+      null::public.goal_preference,
+      'LUXURY_HOTELS'::public.custom_goal_code,
+      2
+    ),
+    (
+      'product-flying-blue-promo',
+      'transfer',
+      'flying_blue',
+      'Flying Blue promo award',
+      45000,
+      820.00,
+      null::public.goal_preference,
+      null::public.custom_goal_code,
+      3
+    )
+) as v(
+  product_key,
+  method_code,
+  partner_code,
+  title,
+  points_required,
+  cash_value_usd,
+  highlight_goal_preference,
+  highlight_custom_goal_code,
+  sort_order
+)
+join public.redemption_methods rm on rm.code = v.method_code
+join public.transfer_partners tp on tp.code = v.partner_code
+on conflict (product_key) do update set
+  title = excluded.title,
+  points_required = excluded.points_required,
+  cash_value_usd = excluded.cash_value_usd,
+  highlight_goal_preference = excluded.highlight_goal_preference,
+  highlight_custom_goal_code = excluded.highlight_custom_goal_code,
+  sort_order = excluded.sort_order;
+
+-- Offer catalog
 insert into public.redemption_offers (
   offer_key,
   redemption_method_code,
+  redemption_product_key,
   title,
   partner_name,
   points_required,
@@ -219,6 +237,7 @@ values
   (
     'offer-united-saver',
     'transfer',
+    'product-united-saver-europe',
     'United Saver, U.S. to Europe',
     'United MileagePlus',
     60000,
@@ -233,6 +252,7 @@ values
   (
     'offer-hyatt-premium',
     'transfer',
+    'product-hyatt-premium-3n',
     'Hyatt premium category, 3 nights',
     'World of Hyatt',
     75000,
@@ -247,6 +267,7 @@ values
   (
     'offer-air-france-promo',
     'transfer',
+    'product-flying-blue-promo',
     'Flying Blue promo award',
     'Air France / KLM',
     45000,
@@ -261,6 +282,7 @@ values
   (
     'offer-portal-economy-rt',
     'portal',
+    null,
     'Round-trip economy, bank travel portal',
     'Issuer travel portal',
     32000,
@@ -275,6 +297,7 @@ values
   (
     'offer-portal-hotel-bundle',
     'portal',
+    null,
     'Flight + hotel bundle',
     'Issuer travel portal',
     48000,
@@ -289,6 +312,7 @@ values
   (
     'offer-portal-lastminute',
     'portal',
+    null,
     'Last-minute weekend getaway',
     'Issuer travel portal',
     22000,
@@ -303,6 +327,7 @@ values
   (
     'offer-statement-500',
     'cashback',
+    null,
     '$500 statement credit',
     'Card issuer',
     50000,
@@ -317,6 +342,7 @@ values
   (
     'offer-cash-deposit',
     'cashback',
+    null,
     'Deposit to linked bank account',
     'Card issuer',
     25000,
@@ -331,6 +357,7 @@ values
   (
     'offer-shop-with-points',
     'cashback',
+    null,
     'Shop with points, everyday purchases',
     'Card issuer',
     5000,
@@ -345,6 +372,7 @@ values
 on conflict (offer_key) do update
 set
   redemption_method_code = excluded.redemption_method_code,
+  redemption_product_key = excluded.redemption_product_key,
   title = excluded.title,
   partner_name = excluded.partner_name,
   points_required = excluded.points_required,
@@ -354,5 +382,4 @@ set
   highlight_label = excluded.highlight_label,
   highlight_goal_preference = excluded.highlight_goal_preference,
   highlight_custom_goal_code = excluded.highlight_custom_goal_code,
-  sort_order = excluded.sort_order,
-  is_active = excluded.is_active;
+  sort_order = excluded.sort_order;
