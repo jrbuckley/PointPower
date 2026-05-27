@@ -1,44 +1,25 @@
 import type { RecommendationId } from "@points-exchange/shared";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CollapsibleCard } from "../../components/CollapsibleCard";
 import { CollapsibleSection } from "../../components/CollapsibleSection";
 import { DifficultyBadge } from "../../components/DifficultyBadge";
 import { GoalFitCard } from "../../components/recommendation/GoalFitCard";
 import { OfferCard } from "../../components/recommendation/OfferCard";
+import { TransferPathHero } from "../../components/recommendation/TransferPathHero";
 import { LoadingSpinner } from "../../components/loading/LoadingSpinner";
 import { RecommendationDetailSkeleton } from "../../components/loading/RecommendationDetailSkeleton";
 import { useRecommendationDetailQuery } from "../../hooks/useDashboardData";
 import { refreshDashboardData } from "../../lib/invalidateDashboard";
 import { getOfferPrimaryAction } from "../../lib/recommendationDetail";
 import { runRecommendationAction } from "../../lib/recommendationActions";
+import { resolvePrimaryActionUrl } from "../../lib/handoffUrls";
 import { toggleSaveOffer } from "../../lib/savedOffersService";
 import { useAppStore } from "../../store/appStore";
 import { useSavedOffersStore } from "../../store/savedOffersStore";
-import type { RedemptionOffer, TransferPathExplanation } from "../../types/models";
+import type { RedemptionOffer } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
-
-function TransferPathHero({ path }: { path: TransferPathExplanation }) {
-  const lines = path.traceLines;
-  const prior = lines.length > 1 ? lines.slice(0, -1) : [];
-  const finalLine = lines.length > 0 ? lines[lines.length - 1] : null;
-
-  return (
-    <View style={styles.pathHero} accessibilityRole="summary">
-      <Text style={styles.pathHeroLabel}>Best modeled transfer path</Text>
-      {prior.map((line) => (
-        <Text key={line} style={styles.pathHeroTracePrior}>
-          {line}
-        </Text>
-      ))}
-      {finalLine ? <Text style={styles.pathHeroTrace}>{finalLine}</Text> : null}
-      <Text style={styles.pathHeroMeta}>
-        {path.modeledIssuerCpp.toFixed(2)}¢ per point modeled · verify live award space
-        before transferring
-      </Text>
-    </View>
-  );
-}
 
 function groupOffersByProgram(
   offers: RedemptionOffer[],
@@ -74,10 +55,21 @@ export default function RecommendationDetailScreen() {
     highlightOffer?: string;
   }>();
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const [highlightY, setHighlightY] = useState<number | null>(null);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const isOfferSaved = useSavedOffersStore((s) => s.isOfferSaved);
   const { data, isPending, isFetching, isError } = useRecommendationDetailQuery(id);
   const showSkeleton = !data && (isPending || isFetching);
+
+  useEffect(() => {
+    if (highlightY == null) return;
+    // Defer one tick so layout settles before scrolling.
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, highlightY - 14), animated: true });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [highlightY]);
 
   async function onToggleSaveOffer(offer: RedemptionOffer) {
     if (!id) return;
@@ -109,6 +101,17 @@ export default function RecommendationDetailScreen() {
     if (!data) return;
 
     const primary = getOfferPrimaryAction(data, offer, rewardBalances);
+    const primaryUrl =
+      primary.actionType === "open_portal" ||
+      primary.actionType === "start_transfer" ||
+      primary.actionType === "statement_credit"
+        ? resolvePrimaryActionUrl({
+            actionType: primary.actionType,
+            programCode: offer.programCode,
+            offer,
+          })
+        : null;
+
     const buttons: {
       text: string;
       style?: "cancel" | "default" | "destructive";
@@ -116,7 +119,7 @@ export default function RecommendationDetailScreen() {
     }[] = [
       {
         text: primary.label,
-        onPress: () => runRecommendationAction(primary, router),
+        onPress: () => runRecommendationAction(primary, router, primaryUrl),
       },
       { text: "Close", style: "cancel" },
     ];
@@ -179,9 +182,16 @@ export default function RecommendationDetailScreen() {
       ? `About ${formatDollars(data.vsCashbackExtraDollars)} more than a simple cash-out at typical rates.`
       : "Similar to a simple cash-out for your current estimate.";
   const aboutSummary = data.whyRecommended.slice(0, 100);
+  const transferPathUrl = data.transferPath
+    ? resolvePrimaryActionUrl({
+        actionType: "start_transfer",
+        programCode: data.transferPath.issuerProgramCode,
+      })
+    : null;
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={styles.scroll}
       showsVerticalScrollIndicator={false}
     >
@@ -199,7 +209,25 @@ export default function RecommendationDetailScreen() {
           </Text>
           <DifficultyBadge difficulty={data.difficulty} />
         </View>
-        {data.transferPath ? <TransferPathHero path={data.transferPath} /> : null}
+        {data.transferPath ? (
+          <TransferPathHero
+            path={data.transferPath}
+            transferUrl={transferPathUrl}
+            onOpenIssuerTransfer={() =>
+              runRecommendationAction(
+                {
+                  id: "transfer-path-handoff",
+                  label: "Start partner transfer",
+                  description: `Move points from ${data.transferPath!.issuerProgramCode} along the modeled path.`,
+                  kind: "primary",
+                  actionType: "start_transfer",
+                },
+                router,
+                transferPathUrl,
+              )
+            }
+          />
+        ) : null}
         {data.rankingRationale ? (
           <Text style={styles.rankingNote}>{data.rankingRationale}</Text>
         ) : null}
@@ -218,16 +246,24 @@ export default function RecommendationDetailScreen() {
               <Text style={styles.offerGroupTitle}>{programLabel}</Text>
             ) : null}
             {programOffers.map((offer) => (
-              <OfferCard
+              <View
                 key={offer.id}
-                offer={offer}
-                compact
-                saved={isOfferSaved(offer.id)}
-                highlighted={
-                  highlightOffer === offer.id || highlightOffer === offer.offerKey
-                }
-                onPress={() => onOfferPress(offer)}
-              />
+                onLayout={(e) => {
+                  const isHighlighted =
+                    highlightOffer === offer.id || highlightOffer === offer.offerKey;
+                  if (isHighlighted) setHighlightY(e.nativeEvent.layout.y);
+                }}
+              >
+                <OfferCard
+                  offer={offer}
+                  compact
+                  saved={isOfferSaved(offer.id)}
+                  highlighted={
+                    highlightOffer === offer.id || highlightOffer === offer.offerKey
+                  }
+                  onPress={() => onOfferPress(offer)}
+                />
+              </View>
             ))}
           </View>
         ))}
@@ -241,7 +277,7 @@ export default function RecommendationDetailScreen() {
           data.redemptionType,
           data.nextSteps.length,
         )}
-        defaultOpen={false}
+        defaultOpen={data.redemptionType === "transfer"}
         style={styles.stepsCard}
       >
         {data.nextSteps.map((step) => (
@@ -320,40 +356,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
     gap: 10,
-  },
-  pathHero: {
-    backgroundColor: "#eff6ff",
-    borderLeftWidth: 3,
-    borderLeftColor: "#2563eb",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  pathHeroLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#1d4ed8",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  pathHeroTrace: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1e3a8a",
-    lineHeight: 21,
-  },
-  pathHeroTracePrior: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#3b82f6",
-    lineHeight: 18,
-  },
-  pathHeroMeta: {
-    fontSize: 12,
-    color: "#64748b",
-    lineHeight: 17,
-    marginTop: 2,
   },
   headerMeta: {
     flexDirection: "row",

@@ -838,8 +838,11 @@ function buildNextSteps(
     if (transferPath && transferPath.traceLines.length > 0) {
       steps.push({
         order: 1,
-        title: "Follow the strongest modeled transfer path",
-        detail: transferPath.traceLines.join(" · "),
+        title: "Follow the numbered transfer path",
+        detail:
+          transferPath.transferHops > 1
+            ? `${transferPath.transferHops} transfers ending at your destination partner. Start at your issuer for step 1; later steps happen in partner accounts.`
+            : "Use the transfer path card above, then confirm award space before moving points.",
       });
     }
 

@@ -100,6 +100,16 @@ export const DEFAULT_VALUATION_CATALOG: ValuationCatalog = {
       sortOrder: 3,
     },
   ],
-  partnerTransferEdges: [],
+  partnerTransferEdges: [
+    {
+      fromPartnerCode: "united",
+      toPartnerCode: "hyatt",
+      transferRatioNum: 1,
+      transferRatioDen: 1,
+      minTransferPoints: null,
+      transferDelayHours: 0,
+      isActive: true,
+    },
+  ],
   transferBonuses: [],
 };

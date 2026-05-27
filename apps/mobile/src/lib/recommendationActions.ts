@@ -1,4 +1,4 @@
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
 import type { Router } from "expo-router";
 import type { RecommendationAction } from "../types/models";
 
@@ -40,9 +40,20 @@ const ACTION_MESSAGES: Record<
 export function runRecommendationAction(
   action: RecommendationAction,
   router?: Router,
+  url?: string | null,
 ): void {
   if (action.actionType === "view_saved_offers") {
     router?.push("/saved-offers");
+    return;
+  }
+
+  if (url) {
+    void Linking.openURL(url).catch(() => {
+      Alert.alert(
+        "Could not open link",
+        "We couldn’t open your browser. Please try again or open it manually.",
+      );
+    });
     return;
   }
 
