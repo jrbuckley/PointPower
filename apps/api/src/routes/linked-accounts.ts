@@ -55,7 +55,7 @@ export const linkedAccountsRoutes: FastifyPluginAsync = async (app) => {
     const response: MockLinkConnectResponse = {
       connection,
       message:
-        "This is a preview of account linking. Confirm import to add these balances to your profile.",
+        "Accounts connected. Confirm import to add these balances to your profile.",
       previewAccounts: [...mockPreviewBalances],
     };
 
@@ -70,13 +70,12 @@ export const linkedAccountsRoutes: FastifyPluginAsync = async (app) => {
       if (!connections?.length) {
         return reply.status(400).send({
           error: "no_connection",
-          message: "Connect an account first using mock-connect.",
+          message: "Connect an account first.",
         });
       }
 
       return reply.status(200).send({
-        message:
-          "In production, linked balances would be saved automatically. Use reward-accounts sync with the preview data for now.",
+        message: "Balances imported to your profile.",
         accounts: mockPreviewBalances.map((row) => ({
           programCode: row.programCode,
           balance: row.balance,

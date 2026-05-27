@@ -53,7 +53,7 @@ const CUSTOM_OPTION = {
   value: "CUSTOM" as const,
   title: "Custom goal",
   subtitle:
-    "Get specific: international flights, luxury hotels, and more. (Trip planning comes later under Travel focused.)",
+    "Get specific: international flights, luxury hotels, statement credits, and more.",
 };
 
 export default function GoalPreferencesScreen() {

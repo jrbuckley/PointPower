@@ -855,7 +855,7 @@ function buildNextSteps(
       order: steps.length + 1,
       title: "Transfer only what you need",
       detail: smallestFit
-        ? `Example: ${smallestFit.title} needs ${smallestFit.pointsRequired.toLocaleString()} ${smallestFit.programLabel} pts. Transfer 1:1, then book within 24 hours.`
+        ? `${smallestFit.title} needs ${smallestFit.pointsRequired.toLocaleString()} ${smallestFit.programLabel} pts. Transfer 1:1, then book within 24 hours.`
         : transferPath
           ? `Move points along the path above, then book within 24 hours.`
           : "Move points 1:1 to the partner, then book within 24 hours.",

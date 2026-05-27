@@ -105,6 +105,7 @@ export type TransferPathExplanation = {
   headline: string;
   detail: string;
   traceLines: string[];
+  stepDestinationCodes: string[];
   issuerProgramCode: string;
   finalPartnerCode: string;
   transferHops: number;

@@ -26,8 +26,8 @@ export function ValueRangeSummaryCard({
       </Text>
       <Text style={styles.note}>
         {programCount > 1
-          ? "Each program redeems separately. We add up typical value per issuer."
-          : "Range depends on how you redeem. Details below are illustrative."}
+          ? "Each program redeems separately. Totals reflect estimated value per issuer."
+          : "Range depends on cashback, portal, and partner redemption paths."}
       </Text>
     </View>
   );

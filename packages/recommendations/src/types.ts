@@ -91,6 +91,8 @@ export type TransferPathExplanation = {
   headline: string;
   detail: string;
   traceLines: string[];
+  /** Partner code at the end of each trace hop (issuer → partner, etc.). */
+  stepDestinationCodes: string[];
   issuerProgramCode: string;
   finalPartnerCode: string;
   transferHops: number;

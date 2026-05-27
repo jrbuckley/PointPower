@@ -23,19 +23,25 @@ const STATUS_COLORS = {
 
 type Props = {
   entry: SavedOfferEntry;
-  onPress: () => void;
+  onContinue: () => void;
   onRemove: () => void;
 };
 
-export function SavedOfferCard({ entry, onPress, onRemove }: Props) {
+export function SavedOfferCard({ entry, onContinue, onRemove }: Props) {
   const offer = entry.offer;
+  const canContinue = entry.status === "active" && offer != null;
 
   return (
     <View style={[styles.card, entry.status !== "active" && styles.cardMuted]}>
       <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
+        onPress={canContinue ? onContinue : undefined}
+        disabled={!canContinue}
+        style={({ pressed }) => [
+          styles.main,
+          canContinue && pressed && styles.pressed,
+        ]}
         accessibilityRole="button"
+        accessibilityState={{ disabled: !canContinue }}
       >
         <View style={styles.top}>
           <Text style={styles.path}>{entry.recommendationTitle}</Text>
@@ -61,20 +67,35 @@ export function SavedOfferCard({ entry, onPress, onRemove }: Props) {
           </>
         ) : (
           <Text style={styles.unavailable}>
-            This offer isn’t in the current catalog. Remove it or check the
-            recommendation path for alternatives.
+            This offer isn’t in the current catalog. Remove it or open the
+            recommendation for alternatives.
           </Text>
         )}
       </Pressable>
 
-      <Pressable
-        onPress={onRemove}
-        style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Remove saved offer"
-      >
-        <Text style={styles.removeText}>Remove</Text>
-      </Pressable>
+      <View style={styles.actions}>
+        {canContinue ? (
+          <Pressable
+            onPress={onContinue}
+            style={({ pressed }) => [
+              styles.continue,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with this offer"
+          >
+            <Text style={styles.continueText}>Continue</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={onRemove}
+          style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Remove saved offer"
+        >
+          <Text style={styles.removeText}>Remove</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -153,9 +174,26 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     lineHeight: 20,
   },
-  remove: {
+  actions: {
+    flexDirection: "row",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e5e7eb",
+  },
+  continue: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "#e5e7eb",
+    backgroundColor: "#eff6ff",
+  },
+  continueText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#2563eb",
+  },
+  remove: {
+    flex: 1,
     paddingVertical: 12,
     alignItems: "center",
   },

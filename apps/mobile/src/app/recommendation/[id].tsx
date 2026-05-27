@@ -13,7 +13,10 @@ import { useRecommendationDetailQuery } from "../../hooks/useDashboardData";
 import { refreshDashboardData } from "../../lib/invalidateDashboard";
 import { getOfferPrimaryAction } from "../../lib/recommendationDetail";
 import { runRecommendationAction } from "../../lib/recommendationActions";
-import { resolvePrimaryActionUrl } from "../../lib/handoffUrls";
+import {
+  resolveOfferPartnerAwardUrl,
+  resolvePrimaryActionUrl,
+} from "../../lib/handoffUrls";
 import { toggleSaveOffer } from "../../lib/savedOffersService";
 import { useAppStore } from "../../store/appStore";
 import { useSavedOffersStore } from "../../store/savedOffersStore";
@@ -113,19 +116,6 @@ export default function RecommendationDetailScreen() {
     }
   }
 
-  function onRemindBeforeExpiry(offer: RedemptionOffer) {
-    runRecommendationAction(
-      {
-        id: `reminder-${offer.id}`,
-        label: "Remind me before expiry",
-        description: `${offer.title}. ${offer.expiresLabel}`,
-        kind: "secondary",
-        actionType: "set_reminder",
-      },
-      router,
-    );
-  }
-
   function onOfferPress(offer: RedemptionOffer) {
     if (!data) return;
 
@@ -141,6 +131,11 @@ export default function RecommendationDetailScreen() {
           })
         : null;
 
+    const partnerAwardUrl =
+      primary.actionType === "start_transfer"
+        ? resolveOfferPartnerAwardUrl(offer)
+        : null;
+
     const buttons: {
       text: string;
       style?: "cancel" | "default" | "destructive";
@@ -153,10 +148,24 @@ export default function RecommendationDetailScreen() {
       { text: "Close", style: "cancel" },
     ];
 
-    buttons.push({
-      text: "Remind me before expiry",
-      onPress: () => onRemindBeforeExpiry(offer),
-    });
+    if (partnerAwardUrl) {
+      buttons.splice(1, 0, {
+        text: "Search partner awards",
+        onPress: () => {
+          runRecommendationAction(
+            {
+              id: `partner-search-${offer.id}`,
+              label: "Search partner awards",
+              description: offer.title,
+              kind: "secondary",
+              actionType: "open_portal",
+            },
+            router,
+            partnerAwardUrl,
+          );
+        },
+      });
+    }
 
     if (isOfferSaved(offer.id)) {
       buttons.push({
@@ -223,13 +232,6 @@ export default function RecommendationDetailScreen() {
       ? `About ${formatDollars(data.vsCashbackExtraDollars)} more than typical cash back.`
       : "Similar value to typical cash back for your balances.";
 
-  const transferPathUrl = data.transferPath
-    ? resolvePrimaryActionUrl({
-        actionType: "start_transfer",
-        programCode: data.transferPath.issuerProgramCode,
-      })
-    : null;
-
   return (
     <ScrollView
       ref={scrollRef}
@@ -254,23 +256,7 @@ export default function RecommendationDetailScreen() {
       </View>
 
       {data.transferPath ? (
-        <TransferPathHero
-          path={data.transferPath}
-          transferUrl={transferPathUrl}
-          onOpenIssuerTransfer={() =>
-            runRecommendationAction(
-              {
-                id: "transfer-path-handoff",
-                label: "Start partner transfer",
-                description: `Move points along the modeled path.`,
-                kind: "primary",
-                actionType: "start_transfer",
-              },
-              router,
-              transferPathUrl,
-            )
-          }
-        />
+        <TransferPathHero path={data.transferPath} />
       ) : (
         <SimpleHandoffBar
           detail={data}
@@ -308,9 +294,6 @@ export default function RecommendationDetailScreen() {
             ))}
           </View>
         ))}
-        <Text style={styles.catalogNote}>
-          Illustrative catalog examples—not live prices or availability.
-        </Text>
       </View>
 
       <GoalFitCard goalFit={data.goalFit} />
@@ -424,12 +407,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#6b7280",
     marginBottom: 4,
-    marginTop: 4,
-  },
-  catalogNote: {
-    fontSize: 12,
-    color: "#9ca3af",
-    lineHeight: 17,
     marginTop: 4,
   },
   aboutCard: {

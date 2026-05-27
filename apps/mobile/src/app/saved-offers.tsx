@@ -92,7 +92,7 @@ export default function SavedOffersScreen() {
             <SavedOfferCard
               key={entry.id}
               entry={entry}
-              onPress={() =>
+              onContinue={() =>
                 openEntry(
                   entry.recommendationId,
                   entry.offer ? entry.offerKey : undefined,

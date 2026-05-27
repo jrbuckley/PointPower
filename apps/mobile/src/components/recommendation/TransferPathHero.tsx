@@ -1,4 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  getTransferPathAwardSearchAction,
+  getTransferPathStepAction,
+  openHandoffUrl,
+} from "../../lib/handoffUrls";
 import type { TransferPathExplanation } from "../../types/models";
 
 const ISSUER_SHORT_LABELS: Record<string, string> = {
@@ -23,26 +28,21 @@ function partnerLabel(code: string): string {
 }
 
 function stepHint(index: number, total: number): string | null {
-  if (total === 1) return null;
-  if (index === 0) return "Do this step on your issuer site (button below).";
-  return "In the partner account after the prior transfer posts.";
+  if (total === 1) return "Transfer on your issuer site, then search partner awards below.";
+  if (index === 0) return "Start on your issuer’s transfer page.";
+  return "Complete this hop in the partner account after the prior transfer posts.";
 }
 
 type Props = {
   path: TransferPathExplanation;
-  transferUrl: string | null;
-  onOpenIssuerTransfer: () => void;
 };
 
-export function TransferPathHero({
-  path,
-  transferUrl,
-  onOpenIssuerTransfer,
-}: Props) {
+export function TransferPathHero({ path }: Props) {
   const hops = path.traceLines;
   const multi = hops.length > 1;
   const issuerName = issuerShortLabel(path.issuerProgramCode);
   const destination = partnerLabel(path.finalPartnerCode);
+  const awardSearch = getTransferPathAwardSearchAction(path);
 
   return (
     <View style={styles.card} accessibilityRole="summary">
@@ -55,6 +55,7 @@ export function TransferPathHero({
       <View style={styles.timeline}>
         {hops.map((line, index) => {
           const hint = stepHint(index, hops.length);
+          const stepAction = getTransferPathStepAction(path, index);
           return (
             <View key={`${index}-${line}`} style={styles.stepRow}>
               <View style={styles.stepRail}>
@@ -68,6 +69,18 @@ export function TransferPathHero({
               <View style={styles.stepContent}>
                 <Text style={styles.stepLine}>{line}</Text>
                 {hint ? <Text style={styles.stepHint}>{hint}</Text> : null}
+                {stepAction ? (
+                  <Pressable
+                    onPress={() => openHandoffUrl(stepAction.url)}
+                    style={({ pressed }: { pressed: boolean }) => [
+                      styles.stepLink,
+                      pressed && styles.stepLinkPressed,
+                    ]}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.stepLinkText}>{stepAction.label}</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
           );
@@ -75,20 +88,20 @@ export function TransferPathHero({
       </View>
 
       <Text style={styles.footer}>
-        {path.modeledIssuerCpp.toFixed(2)}¢/pt modeled · verify space before transferring
+        {path.modeledIssuerCpp.toFixed(2)}¢/pt est. · confirm availability before transferring
       </Text>
 
-      {transferUrl ? (
+      {awardSearch ? (
         <Pressable
-          onPress={onOpenIssuerTransfer}
+          onPress={() => openHandoffUrl(awardSearch.url)}
           style={({ pressed }: { pressed: boolean }) => [
             styles.cta,
             pressed && styles.ctaPressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel={`Start transfer at ${issuerName}`}
+          accessibilityLabel={awardSearch.label}
         >
-          <Text style={styles.ctaText}>Start at {issuerName} transfers</Text>
+          <Text style={styles.ctaText}>{awardSearch.label}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -166,6 +179,19 @@ const styles = StyleSheet.create({
     color: "#64748b",
     lineHeight: 17,
     marginTop: 2,
+  },
+  stepLink: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  stepLinkPressed: {
+    opacity: 0.85,
+  },
+  stepLinkText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2563eb",
   },
   footer: {
     fontSize: 12,

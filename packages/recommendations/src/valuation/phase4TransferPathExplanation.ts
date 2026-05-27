@@ -1,5 +1,5 @@
 import type { ValuationCatalog } from "@points-exchange/shared";
-import type { RewardBalanceInput } from "../types.js";
+import type { RewardBalanceInput, TransferPathExplanation } from "../types.js";
 import {
   findBestTransferPathSummary,
   type TransferPathSummary,
@@ -61,6 +61,15 @@ function formatNodeCode(code: string): string {
   return formatPartnerCode(code);
 }
 
+function destinationCodeFromTraceLine(line: string): string {
+  const arrow = " → ";
+  const i = line.indexOf(arrow);
+  if (i < 0) return "";
+  const after = line.slice(i + arrow.length);
+  const paren = after.indexOf(" (");
+  return (paren >= 0 ? after.slice(0, paren) : after).trim();
+}
+
 function formatTraceLine(line: string): string {
   const arrow = " → ";
   if (!line.includes(arrow)) return line;
@@ -77,37 +86,29 @@ function formatTraceLine(line: string): string {
   return `${formatNodeCode(head)} → ${formatNodeCode(partnerPart)} (${ratio}${bonus})`;
 }
 
-export type TransferPathExplanation = {
-  headline: string;
-  detail: string;
-  traceLines: string[];
-  issuerProgramCode: string;
-  finalPartnerCode: string;
-  transferHops: number;
-  modeledIssuerCpp: number;
-};
-
 export function buildTransferPathExplanation(
   summary: TransferPathSummary,
 ): TransferPathExplanation {
   const issuerLabel = formatProgramCode(summary.issuerProgramCode);
   const partnerLabel = formatPartnerCode(summary.finalPartnerCode);
   const traceLines = summary.trace.map(formatTraceLine);
+  const stepDestinationCodes = summary.trace.map(destinationCodeFromTraceLine);
 
   const headline =
     summary.transferHops > 1
-      ? `Strongest modeled path: ${issuerLabel} → ${partnerLabel} (${summary.transferHops} transfers)`
-      : `Strongest modeled path: ${issuerLabel} → ${partnerLabel}`;
+      ? `Best transfer path: ${issuerLabel} → ${partnerLabel} (${summary.transferHops} transfers)`
+      : `Best transfer path: ${issuerLabel} → ${partnerLabel}`;
 
   const detail =
     summary.transferHops > 1
-      ? `Among catalogued transfer routes (up to ${summary.transferHops} hops), this chain has the highest modeled cents-per-point for ${issuerLabel} in our reference data. Verify live award space before moving points.`
-      : `This direct transfer partner has the highest modeled cents-per-point for ${issuerLabel} in our reference data. Verify live award space before moving points.`;
+      ? `Among available transfer routes (up to ${summary.transferHops} hops), this chain has the highest estimated cents-per-point for ${issuerLabel}. Confirm award availability before transferring.`
+      : `This partner has the highest estimated cents-per-point for ${issuerLabel}. Confirm award availability before transferring.`;
 
   return {
     headline,
     detail,
     traceLines,
+    stepDestinationCodes,
     issuerProgramCode: summary.issuerProgramCode,
     finalPartnerCode: summary.finalPartnerCode,
     transferHops: summary.transferHops,

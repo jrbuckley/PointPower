@@ -273,7 +273,7 @@ values
     45000,
     820,
     12,
-    'Promo ends soon. Verify logged-in pricing before transferring.',
+    'Promo ends soon. Confirm pricing in your Flying Blue account before transferring.',
     'Limited-time',
     null,
     null,

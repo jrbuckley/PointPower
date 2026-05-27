@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CollapsibleSection } from "../components/CollapsibleSection";
+import { ComparePathsCard } from "../components/ComparePathsCard";
 import { DashboardEmptyState } from "../components/DashboardEmptyState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ValueRangeSummaryCard } from "../components/ValueRangeSummaryCard";
@@ -24,8 +24,6 @@ import { summarizeBalances } from "@points-exchange/recommendations";
 import { balancesToInput } from "../lib/balanceInput";
 import { isDashboardEmpty } from "../lib/rewardTotals";
 import { useAppStore } from "../store/appStore";
-import { formatDollars } from "../utils/format";
-
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -138,6 +136,8 @@ export default function DashboardScreen() {
                 programCount={pointsSummary.programCount}
               />
 
+              <ComparePathsCard rows={data.comparison} />
+
               <Text style={styles.sectionTitle}>Top options</Text>
               <Text style={styles.sectionHint}>{data.insightMessage}</Text>
 
@@ -188,29 +188,6 @@ export default function DashboardScreen() {
                 </>
               ) : null}
 
-              <CollapsibleSection
-                title="Compare all paths"
-                summary="See estimated value across redemption types"
-                defaultOpen={false}
-              >
-                {data.comparison.map((row, i) => (
-                  <View
-                    key={row.id}
-                    style={[
-                      styles.compareRow,
-                      i === data.comparison.length - 1 && styles.compareRowLast,
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.compareLabel}>{row.label}</Text>
-                      <Text style={styles.compareSub}>{row.subtitle}</Text>
-                    </View>
-                    <Text style={styles.compareValue}>
-                      {formatDollars(row.estimatedDollars)}
-                    </Text>
-                  </View>
-                ))}
-              </CollapsibleSection>
             </>
         ) : null}
       </ScrollView>
@@ -303,32 +280,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#2563eb",
-  },
-  compareRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#f3f4f6",
-  },
-  compareRowLast: {
-    borderBottomWidth: 0,
-  },
-  compareLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  compareSub: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  compareValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#059669",
-    marginLeft: 12,
   },
 });

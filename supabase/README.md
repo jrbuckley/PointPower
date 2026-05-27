@@ -33,7 +33,22 @@ supabase db reset --linked
 
 Add a new file under `migrations/` with a timestamp prefix, e.g. `20260520120000_description.sql`, then run `supabase db push` again.
 
-For **catalog copy or seed tweaks** on databases that already ran migrations, prefer a new migration with `INSERT ... ON CONFLICT DO UPDATE` rather than editing files above (already-applied migrations are not re-run).
+For **catalog copy or seed tweaks** on databases that already ran migrations:
+
+- **Dev (one test user):** run ad hoc SQL in the Supabase SQL Editor, or use `supabase/scripts/dev-catalog-patches.sql` (see below). Alternatively `supabase db reset --linked` reapplies all seed files from git.
+- **Staging / prod:** add a new migration with `INSERT ... ON CONFLICT DO UPDATE` rather than editing already-applied migration files.
+
+### Dev catalog patches (no new migration)
+
+From the repo root (requires `supabase login` and `supabase link`):
+
+```bash
+supabase db query --linked -f supabase/scripts/dev-catalog-patches.sql
+```
+
+Or paste the file contents into the **SQL Editor** in the Supabase Dashboard (Table Editor → SQL).
+
+**Note:** Older docs may mention `db execute`; current CLI (v2.101+) uses `db query`.
 
 ## Repair migration history after a squash
 

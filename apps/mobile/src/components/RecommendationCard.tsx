@@ -26,7 +26,7 @@ export function RecommendationCard({ recommendation, onPress }: Props) {
         </Text>
         <DifficultyBadge difficulty={recommendation.difficulty} />
       </View>
-      <Text style={styles.hint}>Tap to see offers & next steps</Text>
+      <Text style={styles.hint}>Tap for details and offers</Text>
     </Pressable>
   );
 }
