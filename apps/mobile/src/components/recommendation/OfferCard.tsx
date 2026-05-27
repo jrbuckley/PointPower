@@ -64,30 +64,45 @@ export function OfferCard({
         <Text style={styles.via}>Redeem from {offer.programLabel}</Text>
       ) : null}
 
-      <View style={[styles.metrics, compact && styles.metricsCompact]}>
-        <View>
-          <Text style={styles.metricLabel}>Points needed</Text>
-          <Text style={styles.metricValue}>{formatPoints(offer.pointsRequired)}</Text>
-        </View>
-        <View>
-          <Text style={styles.metricLabel}>Est. cash value</Text>
-          <Text style={styles.metricValue}>
-            {formatDollars(offer.estimatedCashValue)}
+      {compact ? (
+        <Text style={styles.compactMeta}>
+          {formatPoints(offer.pointsRequired)} pts ·{" "}
+          {formatDollars(offer.estimatedCashValue)} ·{" "}
+          <Text
+            style={{ color: COVERAGE_COLORS[offer.coverageStatus], fontWeight: "700" }}
+          >
+            {COVERAGE_LABELS[offer.coverageStatus]}
           </Text>
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text
-          style={[
-            styles.coverage,
-            { color: COVERAGE_COLORS[offer.coverageStatus] },
-          ]}
-        >
-          {COVERAGE_LABELS[offer.coverageStatus]}
         </Text>
-        <Text style={styles.expiry}>{offer.expiresLabel}</Text>
-      </View>
+      ) : (
+        <>
+          <View style={styles.metrics}>
+            <View>
+              <Text style={styles.metricLabel}>Points needed</Text>
+              <Text style={styles.metricValue}>
+                {formatPoints(offer.pointsRequired)}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.metricLabel}>Est. cash value</Text>
+              <Text style={styles.metricValue}>
+                {formatDollars(offer.estimatedCashValue)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.footer}>
+            <Text
+              style={[
+                styles.coverage,
+                { color: COVERAGE_COLORS[offer.coverageStatus] },
+              ]}
+            >
+              {COVERAGE_LABELS[offer.coverageStatus]}
+            </Text>
+            <Text style={styles.expiry}>{offer.expiresLabel}</Text>
+          </View>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -173,8 +188,10 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 12,
   },
-  metricsCompact: {
-    marginBottom: 8,
+  compactMeta: {
+    fontSize: 13,
+    color: "#4b5563",
+    lineHeight: 18,
   },
   metricLabel: {
     fontSize: 12,

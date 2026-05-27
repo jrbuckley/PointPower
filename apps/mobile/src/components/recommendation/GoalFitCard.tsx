@@ -4,7 +4,7 @@ import type { GoalFitSummary } from "../../types/models";
 import { formatDollars, formatPoints } from "../../utils/format";
 
 const STATUS_STYLES = {
-  full: { bg: "#ecfdf5", border: "#6ee7b7", badge: "#059669", label: "Full coverage" },
+  full: { bg: "#ecfdf5", border: "#6ee7b7", badge: "#059669", label: "Full" },
   partial: { bg: "#fffbeb", border: "#fcd34d", badge: "#d97706", label: "Partial" },
   stretch: { bg: "#f3f4f6", border: "#d1d5db", badge: "#6b7280", label: "Stretch" },
 } as const;
@@ -17,18 +17,15 @@ export function GoalFitCard({ goalFit }: Props) {
   const status = STATUS_STYLES[goalFit.status];
 
   const summary =
-    goalFit.programCount > 1
-      ? goalFit.status === "full"
-        ? `${goalFit.percentCovered}% combined coverage`
-        : `${goalFit.percentCovered}% combined, ${formatPoints(goalFit.pointsShort)} pts to go`
-      : goalFit.status === "full"
-        ? `${goalFit.percentCovered}% of your goal`
-        : `${goalFit.percentCovered}% covered, ${formatPoints(goalFit.pointsShort)} pts to go`;
+    goalFit.status === "full"
+      ? `${goalFit.percentCovered}% of goal · ${formatPoints(goalFit.pointsYouHave)} pts`
+      : `${goalFit.percentCovered}% of goal · ${formatPoints(goalFit.pointsShort)} pts short`;
 
   return (
     <CollapsibleCard
-      title={goalFit.headline}
+      title="Goal fit"
       summary={summary}
+      defaultOpen={false}
       backgroundColor={status.bg}
       borderColor={status.border}
       style={styles.card}
@@ -39,24 +36,21 @@ export function GoalFitCard({ goalFit }: Props) {
       }
     >
       <Text style={styles.detail}>{goalFit.detail}</Text>
-      <Text style={styles.meta}>
-        {formatPoints(goalFit.pointsYouHave)} pts combined of{" "}
-        {formatPoints(goalFit.pointsForFullCoverage)} typical for this goal
-        {goalFit.programCount > 1 ? ", with offers grouped by program above" : ""}
-      </Text>
       {goalFit.status !== "full" ? (
         <Text style={styles.gap}>
-          Gap: ~{formatDollars(goalFit.cashGap)} at typical rates
+          About {formatDollars(goalFit.cashGap)} short at typical rates for{" "}
+          {goalFit.targetLabel.toLowerCase()}.
         </Text>
-      ) : null}
-      <Text style={styles.target}>{goalFit.targetLabel}</Text>
+      ) : (
+        <Text style={styles.gap}>{goalFit.targetLabel}</Text>
+      )}
     </CollapsibleCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   badge: {
     paddingHorizontal: 8,
@@ -71,24 +65,13 @@ const styles = StyleSheet.create({
   detail: {
     fontSize: 14,
     color: "#374151",
-    lineHeight: 21,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  meta: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 6,
+    lineHeight: 20,
+    marginTop: 10,
   },
   gap: {
     fontSize: 13,
-    color: "#4b5563",
-    marginBottom: 6,
-  },
-  target: {
-    fontSize: 13,
     color: "#6b7280",
-    fontStyle: "italic",
+    lineHeight: 19,
+    marginTop: 8,
   },
 });

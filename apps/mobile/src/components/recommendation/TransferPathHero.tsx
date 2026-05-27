@@ -22,17 +22,10 @@ function partnerLabel(code: string): string {
   return PARTNER_LABELS[code] ?? code.replace(/_/g, " ");
 }
 
-function stepHint(index: number, total: number): string {
-  if (total === 1) {
-    return "Transfer on your issuer site, then book with the partner.";
-  }
-  if (index === 0) {
-    return "Start here — open your card issuer’s transfer page.";
-  }
-  if (index === total - 1) {
-    return "If offered, move points inside the destination partner’s account.";
-  }
-  return "After the prior transfer posts, continue in that partner’s account.";
+function stepHint(index: number, total: number): string | null {
+  if (total === 1) return null;
+  if (index === 0) return "Do this step on your issuer site (button below).";
+  return "In the partner account after the prior transfer posts.";
 }
 
 type Props = {
@@ -47,73 +40,56 @@ export function TransferPathHero({
   onOpenIssuerTransfer,
 }: Props) {
   const hops = path.traceLines;
-  const multi = path.transferHops > 1 || hops.length > 1;
+  const multi = hops.length > 1;
   const issuerName = issuerShortLabel(path.issuerProgramCode);
   const destination = partnerLabel(path.finalPartnerCode);
 
   return (
     <View style={styles.card} accessibilityRole="summary">
-      <Text style={styles.kicker}>Best modeled transfer path</Text>
-
-      {multi ? (
-        <Text style={styles.headline}>{path.headline}</Text>
-      ) : (
-        <Text style={styles.headlineSingle}>
-          {issuerName} → {destination}
-        </Text>
-      )}
+      <Text style={styles.kicker}>Transfer path</Text>
+      <Text style={styles.subtitle}>
+        {issuerName} → {destination}
+        {multi ? ` · ${hops.length} steps` : ""}
+      </Text>
 
       <View style={styles.timeline}>
-        {hops.map((line, index) => (
-          <View key={`${index}-${line}`} style={styles.stepRow}>
-            <View style={styles.stepRail}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepBadgeText}>{index + 1}</Text>
+        {hops.map((line, index) => {
+          const hint = stepHint(index, hops.length);
+          return (
+            <View key={`${index}-${line}`} style={styles.stepRow}>
+              <View style={styles.stepRail}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepBadgeText}>{index + 1}</Text>
+                </View>
+                {index < hops.length - 1 ? (
+                  <View style={styles.stepConnector} />
+                ) : null}
               </View>
-              {index < hops.length - 1 ? <View style={styles.stepConnector} /> : null}
+              <View style={styles.stepContent}>
+                <Text style={styles.stepLine}>{line}</Text>
+                {hint ? <Text style={styles.stepHint}>{hint}</Text> : null}
+              </View>
             </View>
-            <View style={styles.stepContent}>
-              <Text style={styles.stepLine}>{line}</Text>
-              <Text style={styles.stepHint}>{stepHint(index, hops.length)}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
-      <View style={styles.destinationRow}>
-        <Text style={styles.destinationLabel}>Book with</Text>
-        <Text style={styles.destinationName}>{destination}</Text>
-        <Text style={styles.destinationNote}>
-          Confirm award space before transferring. Points moves are usually
-          irreversible.
-        </Text>
-      </View>
-
-      <Text style={styles.cppMeta}>
-        {path.modeledIssuerCpp.toFixed(2)}¢ per point modeled · illustrative catalog
-        data
+      <Text style={styles.footer}>
+        {path.modeledIssuerCpp.toFixed(2)}¢/pt modeled · verify space before transferring
       </Text>
 
       {transferUrl ? (
-        <>
-          <Pressable
-            onPress={onOpenIssuerTransfer}
-            style={({ pressed }: { pressed: boolean }) => [
-              styles.cta,
-              pressed && styles.ctaPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Start transfer at ${issuerName}`}
-          >
-            <Text style={styles.ctaText}>Start at {issuerName} transfers</Text>
-          </Pressable>
-          {multi ? (
-            <Text style={styles.ctaFootnote}>
-              Step 1 opens your issuer site. Later hops happen in partner
-              programs—not on your bank’s transfer page.
-            </Text>
-          ) : null}
-        </>
+        <Pressable
+          onPress={onOpenIssuerTransfer}
+          style={({ pressed }: { pressed: boolean }) => [
+            styles.cta,
+            pressed && styles.ctaPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Start transfer at ${issuerName}`}
+        >
+          <Text style={styles.ctaText}>Start at {issuerName} transfers</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -127,7 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    gap: 10,
+    gap: 8,
   },
   kicker: {
     fontSize: 11,
@@ -136,17 +112,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  headline: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#1e3a8a",
-    lineHeight: 20,
-  },
-  headlineSingle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#1e3a8a",
-    lineHeight: 22,
+    lineHeight: 21,
   },
   timeline: {
     gap: 0,
@@ -154,7 +124,7 @@ const styles = StyleSheet.create({
   stepRow: {
     flexDirection: "row",
     gap: 10,
-    minHeight: 52,
+    minHeight: 44,
   },
   stepRail: {
     width: 28,
@@ -179,15 +149,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#93c5fd",
     marginTop: 4,
     marginBottom: 4,
-    minHeight: 16,
+    minHeight: 12,
   },
   stepContent: {
     flex: 1,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   stepLine: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#1e3a8a",
     lineHeight: 20,
   },
@@ -195,33 +165,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748b",
     lineHeight: 17,
-    marginTop: 3,
+    marginTop: 2,
   },
-  destinationRow: {
-    backgroundColor: "#dbeafe",
-    borderRadius: 8,
-    padding: 10,
-    gap: 2,
-  },
-  destinationLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1d4ed8",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  destinationName: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#1e3a8a",
-  },
-  destinationNote: {
-    fontSize: 12,
-    color: "#475569",
-    lineHeight: 17,
-    marginTop: 4,
-  },
-  cppMeta: {
+  footer: {
     fontSize: 12,
     color: "#64748b",
     lineHeight: 17,
@@ -229,8 +175,9 @@ const styles = StyleSheet.create({
   cta: {
     backgroundColor: "#2563eb",
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: "center",
+    marginTop: 2,
   },
   ctaPressed: {
     opacity: 0.92,
@@ -239,10 +186,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "800",
-  },
-  ctaFootnote: {
-    fontSize: 12,
-    color: "#475569",
-    lineHeight: 17,
   },
 });

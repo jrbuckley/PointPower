@@ -138,14 +138,8 @@ export default function DashboardScreen() {
                 programCount={pointsSummary.programCount}
               />
 
-              <View style={styles.insight}>
-                <Text style={styles.insightText}>{data.insightMessage}</Text>
-              </View>
-
-              <Text style={styles.sectionTitle}>Top options for you</Text>
-              <Text style={styles.sectionHint}>
-                Ordered by what you said matters. Tap any card to learn more.
-              </Text>
+              <Text style={styles.sectionTitle}>Top options</Text>
+              <Text style={styles.sectionHint}>{data.insightMessage}</Text>
 
               {data.recommendations.map((rec) => (
                 <RecommendationCard
@@ -336,18 +330,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#059669",
     marginLeft: 12,
-  },
-  insight: {
-    backgroundColor: "#eff6ff",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-    marginBottom: 20,
-  },
-  insightText: {
-    fontSize: 15,
-    color: "#1e3a8a",
-    lineHeight: 22,
   },
 });
