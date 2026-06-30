@@ -13,7 +13,7 @@ export function formatDollars(n: number): string {
 }
 
 export function formatDollarsRange(min: number, max: number): string {
-  return `${formatDollars(min)} – ${formatDollars(max)}`;
+  return `${formatDollars(min)} to ${formatDollars(max)}`;
 }
 
 export function parseAmountInput(raw: string): number {

@@ -1,10 +1,13 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useHydration } from "../hooks/useHydration";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingSpinner } from "../components/loading/LoadingSpinner";
+import { useAppBootstrapReady } from "../hooks/useAppBootstrapReady";
 import { useAppStore } from "../store/appStore";
+import { useAuthStore } from "../store/authStore";
 
 export default function Index() {
-  const hydrated = useHydration();
+  const hydrated = useAppBootstrapReady();
+  const user = useAuthStore((s) => s.user);
   const hasCompletedOnboarding = useAppStore(
     (s) => s.hasCompletedOnboarding,
   );
@@ -12,9 +15,14 @@ export default function Index() {
   if (!hydrated) {
     return (
       <View style={styles.boot}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.brand}>PointPower</Text>
+        <LoadingSpinner message="Getting things ready…" />
       </View>
     );
+  }
+
+  if (!user) {
+    return <Redirect href="/login" />;
   }
 
   if (!hasCompletedOnboarding) {
@@ -30,5 +38,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f6f7fb",
+    paddingHorizontal: 32,
+  },
+  brand: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 20,
   },
 });

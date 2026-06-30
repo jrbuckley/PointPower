@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { DashboardBackButton } from "../components/DashboardBackButton";
 import { queryClient } from "../lib/queryClient";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -18,24 +19,59 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+          <Stack.Screen name="verify-email" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="add-rewards" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ headerShown: false, title: "Dashboard" }} />
           <Stack.Screen
             name="recommendation/[id]"
-            options={{ title: "Details", headerShown: true }}
+            options={{
+              title: "Details",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
           />
           <Stack.Screen
             name="rewards-accounts"
-            options={{ title: "Your programs", headerShown: true }}
+            options={{
+              title: "Your programs",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
           />
           <Stack.Screen
             name="goal-preferences"
-            options={{ title: "Your goals", headerShown: true }}
+            options={{
+              title: "Your goals",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
+          />
+          <Stack.Screen
+            name="saved-offers"
+            options={{
+              title: "Saved offers",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
           />
           <Stack.Screen
             name="settings"
-            options={{ title: "Settings", headerShown: true }}
+            options={{
+              title: "Settings",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
+          />
+          <Stack.Screen
+            name="delete-account"
+            options={{
+              title: "Delete account",
+              headerShown: true,
+              headerLeft: () => <DashboardBackButton />,
+            }}
           />
         </Stack>
       </QueryClientProvider>

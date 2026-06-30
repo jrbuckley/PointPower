@@ -5,24 +5,29 @@ type Props = {
   totalPoints: number;
   valueMin: number;
   valueMax: number;
+  programCount?: number;
 };
 
 export function ValueRangeSummaryCard({
   totalPoints,
   valueMin,
   valueMax,
+  programCount = 1,
 }: Props) {
   return (
     <View style={styles.card}>
       <Text style={styles.line1}>
         You have{" "}
         <Text style={styles.emphasis}>{formatPoints(totalPoints)}</Text> points
+        {programCount > 1 ? " across your programs" : ""}
       </Text>
       <Text style={styles.line2}>
         Estimated value: {formatDollarsRange(valueMin, valueMax)}
       </Text>
       <Text style={styles.note}>
-        Range depends on how you redeem—details below are illustrative.
+        {programCount > 1
+          ? "Each program redeems separately. Totals reflect estimated value per issuer."
+          : "Range depends on cashback, portal, and partner redemption paths."}
       </Text>
     </View>
   );
@@ -45,6 +50,12 @@ const styles = StyleSheet.create({
   emphasis: {
     fontWeight: "800",
     color: "#111827",
+  },
+  breakdown: {
+    marginTop: 6,
+    fontSize: 14,
+    color: "#6b7280",
+    lineHeight: 20,
   },
   line2: {
     marginTop: 10,

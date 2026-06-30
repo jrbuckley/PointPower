@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,20 +9,52 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ComparePathsCard } from "../components/ComparePathsCard";
+import { DashboardEmptyState } from "../components/DashboardEmptyState";
 import { RecommendationCard } from "../components/RecommendationCard";
 import { ValueRangeSummaryCard } from "../components/ValueRangeSummaryCard";
+import { DashboardSkeleton } from "../components/loading/DashboardSkeleton";
+import { isApiConfigured } from "../lib/apiClient";
 import { useDashboardSummaryQuery } from "../hooks/useDashboardData";
-import { formatDollars } from "../utils/format";
-
+import { useProfileFromApi } from "../hooks/useProfileFromApi";
+import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
+import { useSavedOffersHydration } from "../hooks/useSavedOffers";
+import { useValuationCatalog } from "../hooks/useValuationCatalog";
+import { summarizeBalances } from "@points-exchange/recommendations";
+import { balancesToInput } from "../lib/balanceInput";
+import { isDashboardEmpty } from "../lib/rewardTotals";
+import { useAppStore } from "../store/appStore";
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isPending, isRefetching, refetch } = useDashboardSummaryQuery();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
+  const { isLoading: profileLoading } = useProfileFromApi(true);
+  useSavedOffersHydration(true);
+  useValuationCatalog(true);
+  const rewardBalances = useAppStore((s) => s.rewardBalances);
+  const showEmpty = isDashboardEmpty(rewardBalances);
+  const { data, isPending, isFetching, isRefetching, refetch } =
+    useDashboardSummaryQuery();
+
+  const apiHydrating =
+    isApiConfigured() && (balancesLoading || profileLoading);
+  const showSkeleton =
+    !showEmpty && !data && (isPending || isFetching || apiHydrating);
+  const showContent = !showEmpty && data;
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const pointsSummary = summarizeBalances(balancesToInput(rewardBalances));
+  const moreCount = data?.moreRecommendations?.length ?? 0;
+
+  function navigate(path: "/saved-offers" | "/rewards-accounts" | "/settings") {
+    setMenuOpen(false);
+    router.push(path);
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.topBar}>
-        <Text style={styles.brand}>Points value</Text>
+        <Text style={styles.brand}>PointPower</Text>
         <View style={styles.topLinks}>
           <Pressable
             onPress={() => router.push("/goal-preferences")}
@@ -33,49 +65,81 @@ export default function DashboardScreen() {
             <Text style={styles.link}>Goals</Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/rewards-accounts")}
+            onPress={() => setMenuOpen((v) => !v)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Programs"
+            accessibilityLabel="More menu"
+            accessibilityState={{ expanded: menuOpen }}
           >
-            <Text style={styles.link}>Programs</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/settings")}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <Text style={styles.link}>Settings</Text>
+            <Text style={styles.link}>More</Text>
           </Pressable>
         </View>
       </View>
 
-      {isPending && !data ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Estimating your value…</Text>
+      {menuOpen ? (
+        <View style={styles.menu}>
+          <Pressable
+            onPress={() => navigate("/saved-offers")}
+            style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Saved offers</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigate("/rewards-accounts")}
+            style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Programs</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigate("/settings")}
+            style={({ pressed }) => [
+              styles.menuItem,
+              styles.menuItemLast,
+              pressed && styles.menuItemPressed,
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.menuItemText}>Settings</Text>
+          </Pressable>
         </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {data ? (
+      ) : null}
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !!data}
+            onRefresh={() => {
+              setMenuOpen(false);
+              refetch();
+            }}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setMenuOpen(false)}
+      >
+        {showEmpty ? (
+          <DashboardEmptyState
+            onAddPrograms={() => router.push("/rewards-accounts")}
+            onSetGoals={() => router.push("/goal-preferences")}
+          />
+        ) : showSkeleton ? (
+          <DashboardSkeleton />
+        ) : showContent ? (
             <>
               <ValueRangeSummaryCard
                 totalPoints={data.totalPoints}
                 valueMin={data.valueRangeMin}
                 valueMax={data.valueRangeMax}
+                programCount={pointsSummary.programCount}
               />
 
-              <Text style={styles.sectionTitle}>Top options for you</Text>
-              <Text style={styles.sectionHint}>
-                Ordered by what you said matters—tap any card to learn more.
-              </Text>
+              <ComparePathsCard rows={data.comparison} />
+
+              <Text style={styles.sectionTitle}>Top options</Text>
+              <Text style={styles.sectionHint}>{data.insightMessage}</Text>
 
               {data.recommendations.map((rec) => (
                 <RecommendationCard
@@ -90,34 +154,43 @@ export default function DashboardScreen() {
                 />
               ))}
 
-              <Text style={styles.sectionTitle}>Quick comparison</Text>
-              <View style={styles.compareCard}>
-                {data.comparison.map((row, i) => (
-                  <View
-                    key={row.id}
-                    style={[
-                      styles.compareRow,
-                      i === data.comparison.length - 1 && styles.compareRowLast,
+              {moreCount > 0 ? (
+                <>
+                  <Pressable
+                    onPress={() => setShowMoreOptions((v) => !v)}
+                    style={({ pressed }) => [
+                      styles.seeMore,
+                      pressed && styles.seeMorePressed,
                     ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showMoreOptions }}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.compareLabel}>{row.label}</Text>
-                      <Text style={styles.compareSub}>{row.subtitle}</Text>
-                    </View>
-                    <Text style={styles.compareValue}>
-                      {formatDollars(row.estimatedDollars)}
+                    <Text style={styles.seeMoreText}>
+                      {showMoreOptions
+                        ? "Show fewer options"
+                        : `See ${moreCount} more option${moreCount === 1 ? "" : "s"}`}
                     </Text>
-                  </View>
-                ))}
-              </View>
+                  </Pressable>
+                  {showMoreOptions
+                    ? data.moreRecommendations.map((rec) => (
+                        <RecommendationCard
+                          key={rec.id}
+                          recommendation={rec}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/recommendation/[id]",
+                              params: { id: rec.id },
+                            })
+                          }
+                        />
+                      ))
+                    : null}
+                </>
+              ) : null}
 
-              <View style={styles.insight}>
-                <Text style={styles.insightText}>{data.insightMessage}</Text>
-              </View>
             </>
-          ) : null}
-        </ScrollView>
-      )}
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
@@ -132,7 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 8,
     gap: 12,
   },
   brand: {
@@ -152,24 +225,40 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2563eb",
   },
+  menu: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#f3f4f6",
+  },
+  menuItemPressed: {
+    backgroundColor: "#f9fafb",
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
   scroll: {
     paddingBottom: 40,
-  },
-  loading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    color: "#6b7280",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
     color: "#111827",
     marginBottom: 4,
+    marginTop: 8,
   },
   sectionHint: {
     fontSize: 14,
@@ -177,51 +266,19 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     lineHeight: 20,
   },
-  compareCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    paddingVertical: 4,
-    marginBottom: 20,
+  seeMore: {
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+    marginTop: -4,
   },
-  compareRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#f3f4f6",
+  seeMorePressed: {
+    opacity: 0.7,
   },
-  compareRowLast: {
-    borderBottomWidth: 0,
-  },
-  compareLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  compareSub: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  compareValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#059669",
-    marginLeft: 12,
-  },
-  insight: {
-    backgroundColor: "#eff6ff",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#bfdbfe",
-  },
-  insightText: {
+  seeMoreText: {
     fontSize: 15,
-    color: "#1e3a8a",
-    lineHeight: 22,
+    fontWeight: "600",
+    color: "#2563eb",
   },
 });

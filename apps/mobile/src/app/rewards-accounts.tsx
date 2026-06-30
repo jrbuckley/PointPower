@@ -1,6 +1,7 @@
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,15 +13,23 @@ import {
   View,
 } from "react-native";
 import { RewardBalanceInputRow } from "../components/RewardBalanceInputRow";
-import { PROGRAM_CATALOG, PROGRAM_LABELS } from "../constants/programs";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
+import { ProgramsEditorSkeleton } from "../components/loading/ProgramsEditorSkeleton";
+import {
+  PROGRAM_CATALOG,
+  PROGRAM_IDS,
+  PROGRAM_LABELS,
+} from "../constants/programs";
+import { useRewardAccountsFromApi } from "../hooks/useRewardAccountsFromApi";
+import { isApiConfigured } from "../lib/apiClient";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
+import { persistRewardBalances } from "../lib/persistRewardBalances";
 import type { RewardBalance, RewardProgramId } from "../types/models";
 import {
   formatAmountInputDisplay,
   parseAmountInput,
 } from "../utils/format";
 import { useAppStore } from "../store/appStore";
-import { PROGRAM_IDS } from "../constants/programs";
 
 function buildInitialStrings(balances: RewardBalance[]) {
   const out: Record<string, string> = {};
@@ -42,9 +51,10 @@ function normalizeSelectedPrograms(balances: RewardBalance[]): RewardProgramId[]
 }
 
 export default function RewardsAccountsScreen() {
-  const router = useRouter();
+  const { isLoading: balancesLoading } = useRewardAccountsFromApi(true);
   const rewardBalances = useAppStore((s) => s.rewardBalances);
   const setRewardBalances = useAppStore((s) => s.setRewardBalances);
+  const showSkeleton = isApiConfigured() && balancesLoading;
 
   const [inputs, setInputs] = useState<Record<string, string>>(() =>
     buildInitialStrings(rewardBalances),
@@ -54,6 +64,7 @@ export default function RewardsAccountsScreen() {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const rows = useMemo(() => {
     return selectedPrograms.map((programId) => ({
@@ -93,14 +104,29 @@ export default function RewardsAccountsScreen() {
     });
   }
 
-  function onSave() {
+  async function onSave() {
     const next: RewardBalance[] = selectedPrograms.map((programId) => ({
       programId,
       amount: parseAmountInput(inputs[programId] ?? ""),
     }));
-    setRewardBalances(next);
-    refreshDashboardData();
-    router.back();
+    setSaving(true);
+    try {
+      const saved = await persistRewardBalances(next);
+      setRewardBalances(saved);
+      refreshDashboardData();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/dashboard");
+      }
+    } catch {
+      Alert.alert(
+        "Could not save",
+        "Your balances could not be saved. Check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -118,6 +144,10 @@ export default function RewardsAccountsScreen() {
           <Text style={styles.lead}>
             Update your totals anytime. We’ll refresh your dashboard estimates.
           </Text>
+          {showSkeleton ? (
+            <ProgramsEditorSkeleton />
+          ) : (
+            <>
           <View style={styles.card}>
           <Pressable
             onPress={() => setPickerOpen(true)}
@@ -148,11 +178,22 @@ export default function RewardsAccountsScreen() {
         </View>
         <Pressable
           onPress={onSave}
-          style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed && styles.ctaPressed,
+            saving && styles.ctaDisabled,
+          ]}
           accessibilityRole="button"
         >
-          <Text style={styles.ctaText}>Save changes</Text>
+          <LoadingButtonLabel
+            loading={saving}
+            label="Save changes"
+            loadingLabel="Saving…"
+          />
         </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -261,6 +302,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.9 },
+  ctaDisabled: { opacity: 0.7 },
   ctaText: {
     color: "#fff",
     fontSize: 17,

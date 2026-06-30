@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,8 +14,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RewardBalanceInputRow } from "../components/RewardBalanceInputRow";
+import { LoadingButtonLabel } from "../components/loading/LoadingButtonLabel";
 import { PROGRAM_CATALOG, PROGRAM_IDS, PROGRAM_LABELS } from "../constants/programs";
 import { refreshDashboardData } from "../lib/invalidateDashboard";
+import { persistRewardBalances } from "../lib/persistRewardBalances";
 import type { RewardBalance, RewardProgramId } from "../types/models";
 import {
   formatAmountInputDisplay,
@@ -56,6 +59,7 @@ export default function AddRewardsScreen() {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const rows = useMemo(() => {
     return selectedPrograms.map((programId) => ({
@@ -95,14 +99,29 @@ export default function AddRewardsScreen() {
     });
   }
 
-  function onSubmit() {
+  async function onSubmit() {
     const next: RewardBalance[] = selectedPrograms.map((programId) => ({
       programId,
       amount: parseAmountInput(inputs[programId] ?? ""),
     }));
-    setRewardBalances(next);
-    refreshDashboardData();
-    router.replace("/goal-preferences?from=onboarding");
+    setSubmitting(true);
+    try {
+      const saved = await persistRewardBalances(next);
+      setRewardBalances(saved);
+      refreshDashboardData();
+      router.replace(
+        params.from === "onboarding"
+          ? "/goal-preferences?from=onboarding"
+          : "/dashboard",
+      );
+    } catch {
+      Alert.alert(
+        "Could not save",
+        "Your balances could not be saved. Check your connection and try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -115,24 +134,8 @@ export default function AddRewardsScreen() {
         <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Your balances</Text>
         <Text style={styles.subtitle}>
-          Add the programs you use, then enter rough totals. You can edit later.
+          Add the programs you use, then enter your point balances. You can edit later.
         </Text>
-
-        <View style={styles.linkCard}>
-          <Text style={styles.linkTitle}>Link accounts (coming soon)</Text>
-          <Text style={styles.linkBody}>
-            Soon you’ll be able to connect accounts so balances and program types fill
-            automatically.
-          </Text>
-          <Pressable
-            disabled
-            style={styles.linkDisabled}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
-          >
-            <Text style={styles.linkDisabledText}>Link my accounts</Text>
-          </Pressable>
-        </View>
 
         <ScrollView
           style={styles.listWrap}
@@ -173,12 +176,21 @@ export default function AddRewardsScreen() {
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <Pressable
             onPress={onSubmit}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.cta,
+              pressed && styles.ctaPressed,
+              submitting && styles.ctaDisabled,
+            ]}
             accessibilityRole="button"
           >
-            <Text style={styles.ctaText}>
-              {params.from === "onboarding" ? "Set my goals" : "See my value"}
-            </Text>
+            <LoadingButtonLabel
+              loading={submitting}
+              label={
+                params.from === "onboarding" ? "Set my goals" : "See my value"
+              }
+              loadingLabel="Saving…"
+            />
           </Pressable>
         </View>
         </View>
@@ -261,37 +273,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 16,
   },
-  linkCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 14,
-  },
-  linkTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  linkBody: {
-    marginTop: 6,
-    fontSize: 14,
-    color: "#4b5563",
-    lineHeight: 20,
-  },
-  linkDisabled: {
-    marginTop: 12,
-    backgroundColor: "#e5e7eb",
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  linkDisabledText: {
-    color: "#6b7280",
-    fontSize: 15,
-    fontWeight: "700",
-  },
   listWrap: { flex: 1 },
   card: {
     backgroundColor: "#fff",
@@ -331,6 +312,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.9 },
+  ctaDisabled: { opacity: 0.7 },
   ctaText: {
     color: "#fff",
     fontSize: 17,

@@ -8,10 +8,18 @@
   "scripts": {
     "dev:api": "npm run dev --workspace=api",
     "dev:mobile": "npm run start --workspace=mobile",
-    "build:shared": "npm run build --workspace=@points-exchange/shared"
+    "build:shared": "npm run build --workspace=@points-exchange/shared",
+    "build:recommendations": "npm run build --workspace=@points-exchange/recommendations",
+    "postinstall": "npm run build:shared && npm run build:recommendations"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   },
   "dependencies": {
     "react-dom": "19.1.0",
